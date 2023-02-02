@@ -1,4 +1,12 @@
 #include "systemcalls.h"
+#include "stdlib.h"
+#include "unistd.h"
+#include "errno.h"
+#include "syslog.h"
+#include "sys/types.h"
+#include "sys/wait.h"
+#include "string.h"
+#include "fcntl.h"
 
 /**
  * @param cmd the command to execute with system()
@@ -16,6 +24,14 @@ bool do_system(const char *cmd)
  *   and return a boolean true if the system() call completed with success
  *   or false() if it returned a failure
 */
+    int return_val;
+    
+    return_val = system(cmd);
+    if(return_val == -1){
+        perror("system Error: ");
+	return false;
+    }
+
 
     return true;
 }
@@ -49,6 +65,7 @@ bool do_exec(int count, ...)
     // and may be removed
     command[count] = command[count];
 
+    va_end(args);
 /*
  * TODO:
  *   Execute a system command by calling fork, execv(),
@@ -58,8 +75,68 @@ bool do_exec(int count, ...)
  *   as second argument to the execv() command.
  *
 */
+    openlog(NULL,0,LOG_USER);
 
-    va_end(args);
+    char* arguments[count+1];
+    int j;
+
+    //Grab program name
+    char input_str[100];
+    strcpy(input_str,command[0]);
+    char* split_arg0 = strtok(input_str,"/");
+    while(split_arg0 != NULL){ 
+	arguments[0]=split_arg0;
+	split_arg0=strtok(NULL,"/");
+    }
+    syslog(LOG_INFO,"REDIRECT - Program Name: %s",arguments[0]);
+
+    //Copy other input parameters from command over to new array
+    for(j=1;j<count+1;j++){
+	arguments[j] = command[j];
+    }
+    //Print all arguments to syslog for debug purposes
+    for(i=0;i<count+1;i++){
+	syslog(LOG_INFO,"REDIRECT - Argument Readout: arguments[%i]:  %s",i,arguments[i]);
+    }
+
+    //Fork
+    pid_t pid;
+    pid = fork();
+    if(pid == -1){
+        perror("fork Error: ");
+	return false;
+    }
+    
+    //Execv - Children Only
+    if(pid == 0){
+        int return_val;
+    	return_val = execv(command[0],arguments);
+    	if(return_val == -1){
+            perror("execv Error: ");
+	    syslog(LOG_INFO,"EXECV ERROR, exiting"); 
+	    exit(EXIT_FAILURE);
+    	}
+	exit(EXIT_SUCCESS);
+    }
+
+    //Wait - Parent Only
+    if(pid != 0){
+	int status;
+	pid_t wpid;
+	syslog(LOG_INFO, "WAITING ON EXECV");
+	wpid = wait(&status);
+	syslog(LOG_INFO, "DONE WAITING ON EXECV");
+	if(wpid == -1){
+	    perror("waitpid Error: ");
+	    return false;
+	}
+	if(WIFEXITED(status)){
+    	    if(WEXITSTATUS(status) == EXIT_FAILURE){
+		syslog(LOG_INFO,"EXECV: EXIT_FAILURE");
+ 	        return false;
+	    }
+	}
+    }
 
     return true;
 }
@@ -94,6 +171,88 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
 */
 
     va_end(args);
+    
+    openlog(NULL,0,LOG_USER);
+    
+    char* arguments[count+1];
+    int j;
+
+    //Grab file descriptor and open outputfile for write
+    int outfile_fd = creat(outputfile, 0644);
+    if(outfile_fd == -1){
+	    perror("REDIRECT - File Open");
+	    return false;
+    }
+
+    //Grab program name
+    char input_str[100];
+    strcpy(input_str,command[0]);
+    char* split_arg0 = strtok(input_str,"/");
+    while(split_arg0 != NULL){ 
+	arguments[0]=split_arg0;
+	split_arg0=strtok(NULL,"/");
+    }
+    syslog(LOG_INFO,"REDIRECT - Program Name: %s",arguments[0]);
+
+    //Copy other input parameters from command over to new array
+    for(j=1;j<count+1;j++){
+	arguments[j] = command[j];
+    }
+    //Print all arguments to syslog for debug purposes
+    for(i=0;i<count+1;i++){
+	syslog(LOG_INFO,"REDIRECT - Argument Readout: arguments[%i]:  %s",i,arguments[i]);
+    }
+    
+    //Fork
+    pid_t pid;
+    pid = fork();
+    if(pid == -1){
+        perror("fork Error: ");
+	return false;
+    }
+    
+    //Execv - Children Only
+    if(pid == 0){
+	int dup2_ret_val;
+	//Copy the file descriptor which points to the outputfile and place that copy in the STDOUT 
+	//File descriptor so that the STDOUT is redirected to a file
+	dup2_ret_val = dup2(outfile_fd,STDOUT_FILENO);
+	if(dup2_ret_val == -1){
+		perror("REDIRECT - dup2: ");
+		exit(EXIT_FAILURE);
+	}
+	//Close out the file descriptor since it is not needed and we only want STDOUT to be writing
+	//to this file at a single time
+	close(outfile_fd);
+        int return_val;	
+    	return_val = execv(command[0],arguments);
+    	if(return_val == -1){
+            perror("execv Error: ");
+	    syslog(LOG_INFO,"EXECV ERROR, exiting"); 
+	    exit(EXIT_FAILURE);
+    	}
+	syslog(LOG_INFO,"EXECV RETURNED %i",return_val);
+	exit(EXIT_SUCCESS);
+    }
+
+    //Wait - Parent Only
+    if(pid != 0){
+	int status;
+	pid_t wpid;
+	syslog(LOG_INFO, "WAITING ON EXECV");
+	wpid = wait(&status);
+	syslog(LOG_INFO, "DONE WAITING ON EXECV");
+	if(wpid == -1){
+	    perror("waitpid Error: ");
+	    return false;
+	}
+	if(WIFEXITED(status)){
+    	    if(WEXITSTATUS(status) == EXIT_FAILURE){
+		syslog(LOG_INFO,"EXECV: EXIT_FAILURE");
+ 	        return false;
+	    }
+	}
+    }
 
     return true;
 }
