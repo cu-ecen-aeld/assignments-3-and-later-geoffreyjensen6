@@ -104,7 +104,7 @@ fi
 
 # TODO: Make and install busybox
 echo "Cross Compile Busybox with ${CROSS_COMPILE} and install in ${OUTDIR}/rootfs"
-sudo make ARCH=arm64 CONFIG_PREFIX=${OUTDIR}/rootfs CROSS_COMPILE=${CROSS_COMPILE} install
+make ARCH=arm64 CONFIG_PREFIX=${OUTDIR}/rootfs CROSS_COMPILE=${CROSS_COMPILE} install
 
 echo "Checking Library dependencies"
 cd ${OUTDIR}/rootfs
