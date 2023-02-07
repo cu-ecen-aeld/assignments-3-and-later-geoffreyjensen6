@@ -113,10 +113,10 @@ ${CROSS_COMPILE}readelf -a bin/busybox | grep "Shared library"
 
 # TODO: Add library dependencies to rootfs
 echo "Copying Library dependencies from ${SYSROOT} to ${OUTDIR}/rootfs/lib"
-cp -a ${SYSROOT}/lib/ld-linux-aarch64.so.1 lib
-cp -a ${SYSROOT}/lib64/libm.so.6 lib64
-cp -a ${SYSROOT}/lib64/libresolv.so.2 lib64
-cp -a ${SYSROOT}/lib64/libc.so.6 lib64
+cp ${SYSROOT}/lib/ld-linux-aarch64.so.1 lib
+cp ${SYSROOT}/lib64/libm.so.6 lib64
+cp ${SYSROOT}/lib64/libresolv.so.2 lib64
+cp ${SYSROOT}/lib64/libc.so.6 lib64
 
 # TODO: Make device nodes
 echo "Making Device Nodes"
