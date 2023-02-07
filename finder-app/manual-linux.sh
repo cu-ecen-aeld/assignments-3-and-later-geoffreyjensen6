@@ -41,10 +41,18 @@ mkdir -p ${OUTDIR}/rootfs/usr/sbin
 mkdir -p ${OUTDIR}/rootfs/var
 mkdir -p ${OUTDIR}/rootfs/var/tmp
 
+cd /home/geoffreyjensen/Desktop/ECEA5305/Assignment1/assignment-1-geoffreyjensen6/finder-app
+m
+cp writer $OUTDIR/rootfs/home/writer
+cp finder.sh $OUTDIR/rootfs/home/finder.sh
+cp finder-test.sh $OUTDIR/rootfs/home/finder-test.sh
+cp -r ../conf/ $OUTDIR/rootfs/home/conf/
+cp autorun-qemu.sh $OUTDIR/rootfs/home/autorun-qemu.sh
+
+
 # TODO: Add library dependencies to rootfs
 echo "Copying Library dependencies from ${CC_LIB} to ${OUTDIR}/rootfs/lib"
-sudo cp ${CC_LIB}/ldlinuxaarch64.txt ${OUTDIR}/rootfs/lib/ldlinuxaarch64.txt
-e
+sudo cp "${CC_LIB}/ldlinuxaarch64.txt" "${OUTDIR}/rootfs/lib/ldlinuxaarch64.txt"
 sudo cp ${CC_LIB}/ld-linux-aarch64.so.1 ${OUTDIR}/rootfs/lib/ld-linux-aarch64.so.1
 echo "Copied ld-linux-aarch64 successfully"
 sudo cp ${CC_LIB}/libm.so.6 ${OUTDIR}/rootfs/lib64/libm.so.6
