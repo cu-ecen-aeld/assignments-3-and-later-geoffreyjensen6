@@ -22,6 +22,36 @@ else
 	OUTDIR=$1
 	echo "Using passed directory ${OUTDIR} for output"
 fi
+#TEST
+mkdir -p ${OUTDIR}/rootfs
+echo "Creating filesystem tree in ${OUTDIR}/rootfs"
+mkdir -p ${OUTDIR}/rootfs/bin
+mkdir -p ${OUTDIR}/rootfs/dev
+mkdir -p ${OUTDIR}/rootfs/etc
+mkdir -p ${OUTDIR}/rootfs/lib
+mkdir -p ${OUTDIR}/rootfs/lib64
+mkdir -p ${OUTDIR}/rootfs/home
+mkdir -p ${OUTDIR}/rootfs/proc
+mkdir -p ${OUTDIR}/rootfs/sys
+mkdir -p ${OUTDIR}/rootfs/sbin
+mkdir -p ${OUTDIR}/rootfs/tmp
+mkdir -p ${OUTDIR}/rootfs/usr
+mkdir -p ${OUTDIR}/rootfs/usr/bin
+mkdir -p ${OUTDIR}/rootfs/usr/sbin
+mkdir -p ${OUTDIR}/rootfs/var
+mkdir -p ${OUTDIR}/rootfs/var/tmp
+
+# TODO: Add library dependencies to rootfs
+echo "Copying Library dependencies from ${SYSROOT} to ${OUTDIR}/rootfs/lib"
+sudo cp ${SYSROOT}/lib/ld-linux-aarch64.so.1 ${OUTDIR}/rootfs/lib
+echo "Copied ld-linux-aarch64 successfully"
+sudo cp ${SYSROOT}/lib64/libm.so.6 ${OUTDIR}/rootfs/lib64
+echo "Copied libm.so.6 successfully"
+sudo cp ${SYSROOT}/lib64/libresolv.so.2 ${OUTDIR}/rootfs/lib64
+echo "Copied libresolv.so.2 successfully"
+sudo cp ${SYSROOT}/lib64/libc.so.6 ${OUTDIR}/rootfs/lib64
+echo "Copied libc.so.6 successfully"
+#END TEST
 
 if [[ ":$PATH:" ==  *":${CROSS_COMPILE_PATH}:"* ]]
 then
@@ -113,10 +143,10 @@ ${CROSS_COMPILE}readelf -a bin/busybox | grep "Shared library"
 
 # TODO: Add library dependencies to rootfs
 echo "Copying Library dependencies from ${SYSROOT} to ${OUTDIR}/rootfs/lib"
-cp ${SYSROOT}/lib/ld-linux-aarch64.so.1 lib
-cp ${SYSROOT}/lib64/libm.so.6 lib64
-cp ${SYSROOT}/lib64/libresolv.so.2 lib64
-cp ${SYSROOT}/lib64/libc.so.6 lib64
+sudo cp ${SYSROOT}/lib/ld-linux-aarch64.so.1 ${OUTDIR}/rootfs/lib
+sudo cp ${SYSROOT}/lib64/libm.so.6 ${OUTDIR}/rootfs/lib64
+sudo cp ${SYSROOT}/lib64/libresolv.so.2 ${OUTDIR}/rootfs/lib64
+sudo cp ${SYSROOT}/lib64/libc.so.6 ${OUTDIR}/rootfs/lib64
 
 # TODO: Make device nodes
 echo "Making Device Nodes"
