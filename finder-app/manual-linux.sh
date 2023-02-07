@@ -42,14 +42,14 @@ mkdir -p ${OUTDIR}/rootfs/var
 mkdir -p ${OUTDIR}/rootfs/var/tmp
 
 # TODO: Add library dependencies to rootfs
-echo "Copying Library dependencies from ${SYSROOT} to ${OUTDIR}/rootfs/lib"
-sudo cp ${CC_LIB}/lib/ld-linux-aarch64.so.1 ${OUTDIR}/rootfs/lib
+echo "Copying Library dependencies from ${CC_LIB} to ${OUTDIR}/rootfs/lib"
+sudo cp ${CC_LIB}/lib/ld-linux-aarch64.so.1 ${OUTDIR}/rootfs/lib/ld-linux-aarch64.so.1
 echo "Copied ld-linux-aarch64 successfully"
-sudo cp ${CC_LIB}/lib64/libm.so.6 ${OUTDIR}/rootfs/lib64
+sudo cp ${CC_LIB}/lib64/libm.so.6 ${OUTDIR}/rootfs/lib64/libm.so.6
 echo "Copied libm.so.6 successfully"
-sudo cp ${CC_LIB}/lib64/libresolv.so.2 ${OUTDIR}/rootfs/lib64
+sudo cp ${CC_LIB}/lib64/libresolv.so.2 ${OUTDIR}/rootfs/lib64/libresolv.so.2
 echo "Copied libresolv.so.2 successfully"
-sudo cp ${CC_LIB}/lib64/libc.so.6 ${OUTDIR}/rootfs/lib64
+sudo cp ${CC_LIB}/lib64/libc.so.6 ${OUTDIR}/rootfs/lib64/libc.so.6
 echo "Copied libc.so.6 successfully"
 #END TEST
 
@@ -142,11 +142,15 @@ ${CROSS_COMPILE}readelf -a bin/busybox | grep "program interpreter"
 ${CROSS_COMPILE}readelf -a bin/busybox | grep "Shared library"
 
 # TODO: Add library dependencies to rootfs
-echo "Copying Library dependencies from ${SYSROOT} to ${OUTDIR}/rootfs/lib"
-sudo cp ${SYSROOT}/lib/ld-linux-aarch64.so.1 ${OUTDIR}/rootfs/lib
-sudo cp ${SYSROOT}/lib64/libm.so.6 ${OUTDIR}/rootfs/lib64
-sudo cp ${SYSROOT}/lib64/libresolv.so.2 ${OUTDIR}/rootfs/lib64
-sudo cp ${SYSROOT}/lib64/libc.so.6 ${OUTDIR}/rootfs/lib64
+echo "Copying Library dependencies from ${CC_LIB} to ${OUTDIR}/rootfs/lib"
+sudo cp ${CC_LIB}/lib/ld-linux-aarch64.so.1 ${OUTDIR}/rootfs/lib
+echo "Copied ld-linux-aarch64 successfully"
+sudo cp ${CC_LIB}/lib64/libm.so.6 ${OUTDIR}/rootfs/lib64
+echo "Copied libm.so.6 successfully"
+sudo cp ${CC_LIB}/lib64/libresolv.so.2 ${OUTDIR}/rootfs/lib64
+echo "Copied libresolv.so.2 successfully"
+sudo cp ${CC_LIB}/lib64/libc.so.6 ${OUTDIR}/rootfs/lib64
+echo "Copied libc.so.6 successfully"
 
 # TODO: Make device nodes
 echo "Making Device Nodes"
