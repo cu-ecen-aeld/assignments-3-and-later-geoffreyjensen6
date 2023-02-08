@@ -34,18 +34,6 @@ else
 fi
 
 mkdir -p ${OUTDIR}
-
-cd ${FINDER_APP_DIR}
-cp libc/lib/ld-linux-aarch64.so.1 ${OUTDIR}/ld-linux-aarch64.so.1
-echo "Copied ld-linux-aarch64 successfully"
-cp libc/lib64/libm.so.6 ${OUTDIR}/libm.so.6
-echo "Copied libm.so.6 successfully"
-cp libc/lib64/libresolv.so.2 ${OUTDIR}/libresolv.so.2
-echo "Copied libresolv.so.2 successfully"
-cp libc/lib64/libc.so.6 ${OUTDIR}/libc.so.6
-echo "Copied libc.so.6 successfully"
-#
-
 cd "${OUTDIR}"
 if [ ! -d "${OUTDIR}/linux-stable" ]; then
     #Clone only if the repository does not exist.
@@ -118,12 +106,13 @@ echo "Cross Compile Busybox with ${CROSS_COMPILE} and install in ${OUTDIR}/rootf
 make ARCH=arm64 CONFIG_PREFIX=${OUTDIR}/rootfs CROSS_COMPILE=${CROSS_COMPILE} install
 
 echo "Checking Library dependencies"
-cd ${OUTDIR}/rootfs
+cd {OUTDIR}/rootfs
 ${CROSS_COMPILE}readelf -a bin/busybox | grep "program interpreter"
 ${CROSS_COMPILE}readelf -a bin/busybox | grep "Shared library"
 
+cd ${FINDER_APP_DIR}
 # TODO: Add library dependencies to rootfs
-echo "Copying Library dependencies from ${CC_LIB} to ${OUTDIR}/rootfs/lib"
+echo "Copying Library dependencies from ${FINDER_APP_DIR} to ${OUTDIR}/rootfs/lib"
 cp libc/lib/ld-linux-aarch64.so.1 ${OUTDIR}/rootfs/lib/ld-linux-aarch64.so.1
 echo "Copied ld-linux-aarch64 successfully"
 cp libc/lib64/libm.so.6 ${OUTDIR}/rootfs/lib64/libm.so.6
@@ -136,6 +125,7 @@ echo "Copied libc.so.6 successfully"
 
 # TODO: Make device nodes
 echo "Making Device Nodes"
+cd ${OUTDIR}/rootfs
 sudo mknod -m 666 dev/null c 1 3
 sudo mknod -m 666 dev/console c 5 1
 
@@ -148,22 +138,22 @@ make ARCH=arm64 CROSS_COMPILE=${CROSS_COMPILE}
 # TODO: Copy the finder related scripts and executables to the /home directory
 # on the target rootfs
 echo "Copy writer, finder.sh, finder-test.sh, autorun-qemu.sh, and the conf directory to ${OUTDIR}/rootfs"
-cp writer $OUTDIR/rootfs/home/writer
-cp finder.sh $OUTDIR/rootfs/home/finder.sh
-cp finder-test.sh $OUTDIR/rootfs/home/finder-test.sh
-cp -r ../conf/ $OUTDIR/rootfs/home/conf/
-cp autorun-qemu.sh $OUTDIR/rootfs/home/autorun-qemu.sh
+cp writer ${OUTDIR}/rootfs/home/writer
+cp finder.sh ${OUTDIR}/rootfs/home/finder.sh
+cp finder-test.sh ${OUTDIR}/rootfs/home/finder-test.sh
+cp -r ../conf/ ${OUTDIR}/rootfs/home/conf/
+cp autorun-qemu.sh ${OUTDIR}/rootfs/home/autorun-qemu.sh
 
 # TODO: Chown the root directory
 echo "Change Ownership of ${OUTDIR}/rootfs to root:root"
-cd $OUTDIR/rootfs
+cd ${OUTDIR}/rootfs
 sudo chown -R root:root *
 
 # TODO: Create initramfs.cpio.gz
 echo "Create initramfs.cpio.gz"
 if [ -e ${OUTDIR}/initramfs.cpio.gz ]
 then
-	sudo rm -r $OUTDIR/initramfs.cpio.gz
+	sudo rm -r ${OUTDIR}/initramfs.cpio.gz
 fi
-find . -print0 | cpio --null -ov --format=newc | gzip -9 > $OUTDIR/initramfs.cpio.gz
-sudo chown -R root:root $OUTDIR/initramfs.cpio.gz
+find . -print0 | cpio --null -ov --format=newc | gzip -9 > ${OUTDIR}/initramfs.cpio.gz
+sudo chown -R root:root ${OUTDIR}/initramfs.cpio.gz
