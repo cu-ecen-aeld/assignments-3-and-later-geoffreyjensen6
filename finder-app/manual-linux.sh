@@ -50,7 +50,8 @@ cp autorun-qemu.sh $OUTDIR/rootfs/home/autorun-qemu.sh
 
 # TODO: Add library dependencies to rootfs
 echo "Copying Library dependencies from ${CC_LIB} to ${OUTDIR}/rootfs/lib"
-cp ${CC_LIB}/lib/ld-linux-aarch64.so.1 ${OUTDIR}/rootfs/lib/ld-linux-aarch64.so.1
+cd ${CC_LIB}/lib
+cp "ld-linux-aarch64.so.1" "${OUTDIR}/rootfs/lib/ld-linux-aarch64.so.1"
 echo "Copied ld-linux-aarch64 successfully"
 cp ${CC_LIB}/lib64/libm.so.6 ${OUTDIR}/rootfs/lib64/libm.so.6
 echo "Copied libm.so.6 successfully"
