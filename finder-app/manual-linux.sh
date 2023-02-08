@@ -12,7 +12,7 @@ BUSYBOX_VERSION=1_33_1
 FINDER_APP_DIR=$(realpath $(dirname $0))
 ARCH=arm64
 CROSS_COMPILE=aarch64-none-linux-gnu-
-CC_LIB=/home/geoffreyjensen/Desktop
+CC_LIB=/home/geoffreyjensen/Desktop/ECEA5305/arm-gnu-toolchain-12.2.rel1-x86_64-aarch64-none-linux-gnu/aarch64-none-linux-gnu/libc
 CROSS_COMPILE_PATH=/home/geoffreyjensen/Desktop/ECEA5305/arm-gnu-toolchain-12.2.rel1-x86_64-aarch64-none-linux-gnu/bin
 
 if [ $# -lt 1 ]
@@ -43,25 +43,20 @@ mkdir -p ${OUTDIR}/rootfs/var/tmp
 
 pwd
 cd ${FINDER_APP_DIR}
-#/home/geoffreyjensen/Desktop/ECEA5305/Assignment1/assignment-1-geoffreyjensen6/finder-app
-
-cp writer $OUTDIR/rootfs/home/writer
 cp finder.sh $OUTDIR/rootfs/home/finder.sh
 cp finder-test.sh $OUTDIR/rootfs/home/finder-test.sh
 cp -r ../conf/ $OUTDIR/rootfs/home/conf/
 cp autorun-qemu.sh $OUTDIR/rootfs/home/autorun-qemu.sh
 
-
 # TODO: Add library dependencies to rootfs
 echo "Copying Library dependencies from ${CC_LIB} to ${OUTDIR}/rootfs/lib"
-sudo cp "${CC_LIB}/ldlinuxaarch64.txt" "${OUTDIR}/rootfs/lib/ldlinuxaarch64.txt"
-sudo cp ${CC_LIB}/ld-linux-aarch64.so.1 ${OUTDIR}/rootfs/lib/ld-linux-aarch64.so.1
+sudo cp ${CC_LIB}/lib/d-linux-aarch64.so.1 ${OUTDIR}/rootfs/lib/ld-linux-aarch64.so.1
 echo "Copied ld-linux-aarch64 successfully"
-sudo cp ${CC_LIB}/libm.so.6 ${OUTDIR}/rootfs/lib64/libm.so.6
+sudo cp ${CC_LIB}/lib64/libm.so.6 ${OUTDIR}/rootfs/lib64/libm.so.6
 echo "Copied libm.so.6 successfully"
-sudo cp ${CC_LIB}/libresolv.so.2 ${OUTDIR}/rootfs/lib64/libresolv.so.2
+sudo cp ${CC_LIB}/lib64/libresolv.so.2 ${OUTDIR}/rootfs/lib64/libresolv.so.2
 echo "Copied libresolv.so.2 successfully"
-sudo cp ${CC_LIB}/libc.so.6 ${OUTDIR}/rootfs/lib64/libc.so.6
+sudo cp ${CC_LIB}/lib64/libc.so.6 ${OUTDIR}/rootfs/lib64/libc.so.6
 echo "Copied libc.so.6 successfully"
 #END TEST
 
