@@ -22,43 +22,6 @@ else
 	OUTDIR=$1
 	echo "Using passed directory ${OUTDIR} for output"
 fi
-#TEST
-mkdir -p ${OUTDIR}/rootfs
-echo "Creating filesystem tree in ${OUTDIR}/rootfs"
-mkdir -p ${OUTDIR}/rootfs/bin
-mkdir -p ${OUTDIR}/rootfs/dev
-mkdir -p ${OUTDIR}/rootfs/etc
-mkdir -p ${OUTDIR}/rootfs/lib
-mkdir -p ${OUTDIR}/rootfs/lib64
-mkdir -p ${OUTDIR}/rootfs/home
-mkdir -p ${OUTDIR}/rootfs/proc
-mkdir -p ${OUTDIR}/rootfs/sys
-mkdir -p ${OUTDIR}/rootfs/sbin
-mkdir -p ${OUTDIR}/rootfs/tmp
-mkdir -p ${OUTDIR}/rootfs/usr
-mkdir -p ${OUTDIR}/rootfs/usr/bin
-mkdir -p ${OUTDIR}/rootfs/usr/sbin
-mkdir -p ${OUTDIR}/rootfs/var
-mkdir -p ${OUTDIR}/rootfs/var/tmp
-
-pwd
-cd ${FINDER_APP_DIR}
-cp finder.sh $OUTDIR/rootfs/home/finder.sh
-cp finder-test.sh $OUTDIR/rootfs/home/finder-test.sh
-cp -r ../conf/ $OUTDIR/rootfs/home/conf/
-cp autorun-qemu.sh $OUTDIR/rootfs/home/autorun-qemu.sh
-
-# TODO: Add library dependencies to rootfs
-echo "Copying Library dependencies from ${CC_LIB} to ${OUTDIR}/rootfs/lib"
-cp libc/lib/ld-linux-aarch64.so.1 ${OUTDIR}/rootfs/lib/ld-linux-aarch64.so.1
-echo "Copied ld-linux-aarch64 successfully"
-cp libc/lib64/libm.so.6 ${OUTDIR}/rootfs/lib64/libm.so.6
-echo "Copied libm.so.6 successfully"
-cp libc/lib64/libresolv.so.2 ${OUTDIR}/rootfs/lib64/libresolv.so.2
-echo "Copied libresolv.so.2 successfully"
-cp libc/lib64/libc.so.6 ${OUTDIR}/rootfs/lib64/libc.so.6
-echo "Copied libc.so.6 successfully"
-#END TEST
 
 if [[ ":$PATH:" ==  *":${CROSS_COMPILE_PATH}:"* ]]
 then
@@ -150,14 +113,15 @@ ${CROSS_COMPILE}readelf -a bin/busybox | grep "Shared library"
 
 # TODO: Add library dependencies to rootfs
 echo "Copying Library dependencies from ${CC_LIB} to ${OUTDIR}/rootfs/lib"
-sudo cp ${CC_LIB}/lib/ld-linux-aarch64.so.1 ${OUTDIR}/rootfs/lib
+cp libc/lib/ld-linux-aarch64.so.1 ${OUTDIR}/rootfs/lib/ld-linux-aarch64.so.1
 echo "Copied ld-linux-aarch64 successfully"
-sudo cp ${CC_LIB}/lib64/libm.so.6 ${OUTDIR}/rootfs/lib64
+cp libc/lib64/libm.so.6 ${OUTDIR}/rootfs/lib64/libm.so.6
 echo "Copied libm.so.6 successfully"
-sudo cp ${CC_LIB}/lib64/libresolv.so.2 ${OUTDIR}/rootfs/lib64
+cp libc/lib64/libresolv.so.2 ${OUTDIR}/rootfs/lib64/libresolv.so.2
 echo "Copied libresolv.so.2 successfully"
-sudo cp ${CC_LIB}/lib64/libc.so.6 ${OUTDIR}/rootfs/lib64
+cp libc/lib64/libc.so.6 ${OUTDIR}/rootfs/lib64/libc.so.6
 echo "Copied libc.so.6 successfully"
+#END TEST
 
 # TODO: Make device nodes
 echo "Making Device Nodes"
@@ -166,7 +130,7 @@ sudo mknod -m 666 dev/console c 5 1
 
 # TODO: Clean and build the writer utility
 echo "Clean and build the writer utility from Assignment 1 part 2"
-cd /home/geoffreyjensen/Desktop/ECEA5305/Assignment1/assignment-1-geoffreyjensen6/finder-app
+cd ${FINDER_APP_DIR}
 make clean
 make ARCH=arm64 CROSS_COMPILE=${CROSS_COMPILE}
 
