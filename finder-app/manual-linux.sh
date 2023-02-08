@@ -106,7 +106,7 @@ echo "Cross Compile Busybox with ${CROSS_COMPILE} and install in ${OUTDIR}/rootf
 make ARCH=arm64 CONFIG_PREFIX=${OUTDIR}/rootfs CROSS_COMPILE=${CROSS_COMPILE} install
 
 echo "Checking Library dependencies"
-cd {OUTDIR}/rootfs
+cd ${OUTDIR}/rootfs
 ${CROSS_COMPILE}readelf -a bin/busybox | grep "program interpreter"
 ${CROSS_COMPILE}readelf -a bin/busybox | grep "Shared library"
 
