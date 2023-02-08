@@ -41,8 +41,9 @@ mkdir -p ${OUTDIR}/rootfs/usr/sbin
 mkdir -p ${OUTDIR}/rootfs/var
 mkdir -p ${OUTDIR}/rootfs/var/tmp
 
+cp writer $OUTDIR/rootfs/home/writer
 pwd
-cd ${HOME}/Desktop/ECEA5305/Assignment1/assignment-1-geoffreyjensen6/finder-app
+cd /home/geoffreyjensen/Desktop/ECEA5305/Assignment1/assignment-1-geoffreyjensen6/finder-app
 
 cp writer $OUTDIR/rootfs/home/writer
 cp finder.sh $OUTDIR/rootfs/home/finder.sh
