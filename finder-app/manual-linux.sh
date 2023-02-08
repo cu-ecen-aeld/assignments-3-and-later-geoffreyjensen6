@@ -35,6 +35,17 @@ fi
 
 mkdir -p ${OUTDIR}
 
+cd ${FINDER_APP_DIR}
+cp libc/lib/ld-linux-aarch64.so.1 ${OUTDIR}/ld-linux-aarch64.so.1
+echo "Copied ld-linux-aarch64 successfully"
+cp libc/lib64/libm.so.6 ${OUTDIR}/libm.so.6
+echo "Copied libm.so.6 successfully"
+cp libc/lib64/libresolv.so.2 ${OUTDIR}/libresolv.so.2
+echo "Copied libresolv.so.2 successfully"
+cp libc/lib64/libc.so.6 ${OUTDIR}/libc.so.6
+echo "Copied libc.so.6 successfully"
+#
+
 cd "${OUTDIR}"
 if [ ! -d "${OUTDIR}/linux-stable" ]; then
     #Clone only if the repository does not exist.
