@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 #Author: Geoffrey Jensen
 #ECEA 5305 Assignment #1
