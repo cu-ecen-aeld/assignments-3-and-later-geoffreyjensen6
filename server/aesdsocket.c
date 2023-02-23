@@ -44,7 +44,7 @@ void flip_ip_addr(char *ip_addr){
 	}
 
 	sprintf(modified_ip_addr,"%s.%s.%s.%s",temp_values[3],temp_values[2],temp_values[1],temp_values[0]);
-	syslog(LOG_DEBUG, "Reversed IP addr for Debug Printing: %s ",modified_ip_addr);
+	//syslog(LOG_DEBUG, "Reversed IP addr for Debug Printing: %s ",modified_ip_addr);
 	strcpy(ip_addr,modified_ip_addr);
 	
 	return;
@@ -65,7 +65,7 @@ void receive_and_write_to_file(int socket_fd, int writer_fd){
 				perror("SOCKET RECV ERROR: ");
 				return;
 			}	
-			syslog(LOG_DEBUG,"RECV: %li bytes and read_buffer=%s",bytes_read,read_buffer);
+			//syslog(LOG_DEBUG,"RECV: %li bytes and read_buffer=%s",bytes_read,read_buffer);
 			if(strchr(read_buffer,newline) != NULL){
 				end_of_packet = 1;
 			}
@@ -102,7 +102,7 @@ void read_file_and_send(int socket_fd){
 			perror("SOCKET READ ERROR: ");
 			return;
 		}
-		syslog(LOG_DEBUG,"READ: %li bytes and File contents=%s",bytes_read,write_buffer);	
+		//syslog(LOG_DEBUG,"READ: %li bytes and File contents=%s",bytes_read,write_buffer);	
 		while(1){
 			bytes_written = write(socket_fd,write_buffer,bytes_read);
 			if(bytes_written == -1){
@@ -133,7 +133,6 @@ int main(int argc, char *argv[]){
 	struct addrinfo skt_addrinfo, *res_skt_addrinfo, *rp;
 	struct sockaddr connected_sktaddr;
 	struct sockaddr_in *ip_addr = (struct sockaddr_in *)&connected_sktaddr;
-	struct sockaddr_in server_addr;
 	struct in_addr connected_ip = ip_addr->sin_addr;
 	char client_ip[INET_ADDRSTRLEN], client_ip_hostview[INET_ADDRSTRLEN];
 	struct sigaction socket_sigaction;
@@ -155,7 +154,7 @@ int main(int argc, char *argv[]){
 	//Setup addrinfo struct
 	socklen_t sktaddr_size;
 	memset(&skt_addrinfo,0,sizeof skt_addrinfo);
-	skt_addrinfo.ai_family = AF_UNSPEC;
+	skt_addrinfo.ai_family = AF_INET;
 	skt_addrinfo.ai_socktype = SOCK_STREAM;
 	skt_addrinfo.ai_flags = AI_PASSIVE;
 	ret_val = getaddrinfo(NULL,PORT,&skt_addrinfo,&res_skt_addrinfo);
@@ -224,6 +223,7 @@ int main(int argc, char *argv[]){
 			close(skt_fd);
 			close(writer_fd);
 			remove(WRITE_FILE);
+			closelog();
 			return 0;
 		}
 		connected_skt_fd = accept(skt_fd,&connected_sktaddr,&sktaddr_size); 

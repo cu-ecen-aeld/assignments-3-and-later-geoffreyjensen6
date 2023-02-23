@@ -10,9 +10,9 @@ CROSS_COMPILE=none
 
 default: $(OBJ)
 ifeq ($(CROSS_COMPILE), $(CROSS_CC))
-	$(CROSS_CC)$(CC) -o $(OBJ) $(SRC)
+	$(CROSS_CC)$(CC) -o $(OBJ) $(SRC) -g -Wall -Werror
 else
-	$(CC) -o $(OBJ) $(SRC)
+	$(CC) -o $(OBJ) $(SRC) -g -Wall -Werror
 endif
 
 clean:
