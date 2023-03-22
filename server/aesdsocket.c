@@ -1,10 +1,7 @@
 /*-----------------------------------------------------------------------------
 Author: Geoffrey Jensen
-ECEA 5305 Assignment #5
-Date: 02/19/2023
-Description: Takes an input file name (must include full path including file
-  name) and also takes an input string that it writes to this file. Creates the
-  file if it doesn't already exist and overwrites file if it does.
+ECEA 5306 Assignment #6
+Date: 03/21/2023
 -----------------------------------------------------------------------------*/
 
 #include <stdio.h>
@@ -20,7 +17,9 @@ Description: Takes an input file name (must include full path including file
 #include <arpa/inet.h>
 #include <stdbool.h>
 #include <signal.h>
-
+#include <sys/queue.h>
+#include <pthread.h>
+#include <time.h>
 
 #define PORT "9000"
 #define BACKLOG 20
@@ -28,6 +27,25 @@ Description: Takes an input file name (must include full path including file
 #define READ_WRITE_SIZE 1024
 
 bool caught_signal = false;
+
+struct arg_struct {
+	int connected_skt_fd;
+	int write_fd;
+	int thread_complete;
+};
+
+struct thread_info {
+	pthread_t thread_id;
+	struct arg_struct input_args;
+};
+
+struct slist_data_struct {
+	struct thread_info tinfo;
+	SLIST_ENTRY(slist_data_struct) entries;
+};
+
+SLIST_HEAD(slisthead,slist_data_struct) head = SLIST_HEAD_INITIALIZER(head);
+pthread_mutex_t write_lock;
 
 void flip_ip_addr(char *ip_addr){
 	char modified_ip_addr[INET_ADDRSTRLEN];
@@ -63,6 +81,7 @@ void receive_and_write_to_file(int socket_fd, int writer_fd){
 					continue;
 				}
 				perror("SOCKET RECV ERROR: ");
+				syslog(LOG_DEBUG,"FD is %i",socket_fd);
 				return;
 			}	
 			//syslog(LOG_DEBUG,"RECV: %li bytes and read_buffer=%s",bytes_read,read_buffer);
@@ -70,16 +89,19 @@ void receive_and_write_to_file(int socket_fd, int writer_fd){
 				end_of_packet = 1;
 			}
 			while(1){
-				bytes_written = write(writer_fd, read_buffer, bytes_read);
-				if(bytes_written == -1){
-					if (errno == EINTR){
-						continue;
+				if(pthread_mutex_lock(&write_lock) == 0){
+					bytes_written = write(writer_fd, read_buffer, bytes_read);
+					if(bytes_written == -1){
+						if (errno == EINTR){
+							continue;
+						}
+						perror("SOCKET WRITE ERROR: ");
+						return;
 					}
-					perror("SOCKET WRITE ERROR: ");
-					return;
-				}
-				else{
-					break;
+					else{
+						pthread_mutex_unlock(&write_lock);
+						break;
+					}
 				}
 			}
 		}
@@ -127,6 +149,69 @@ static void socket_signal_handler (int signal_number){
 	} 
 }
 
+void *data_processor(void *input_args){
+	struct arg_struct *in_args = input_args;
+	//Receive, Store, Read back, and Send data back
+	receive_and_write_to_file(in_args->connected_skt_fd, in_args->write_fd);
+	read_file_and_send(in_args->connected_skt_fd);
+	in_args->thread_complete = 1;
+
+	return input_args;
+}
+
+int add_slist_entry(int connected_skt_fd, int writer_fd){
+	struct slist_data_struct *entry;
+	struct slist_data_struct *current_entry;
+
+	entry  = (struct slist_data_struct*)malloc(sizeof(struct slist_data_struct));
+
+	entry->tinfo.input_args.connected_skt_fd = connected_skt_fd;
+	entry->tinfo.input_args.write_fd = writer_fd;
+	entry->tinfo.input_args.thread_complete = 0;
+	pthread_create(&entry->tinfo.thread_id,NULL,data_processor,(void *)&entry->tinfo.input_args);
+
+	if(SLIST_EMPTY(&head) != 0){
+		SLIST_INSERT_HEAD(&head, entry, entries);
+	}
+	else{
+		SLIST_FOREACH(current_entry, &head, entries){
+			if(current_entry->entries.sle_next == NULL){
+				SLIST_INSERT_AFTER(current_entry, entry, entries);
+				break;
+			}
+		}
+	}
+	return 0;
+}
+
+void timestamp_logger(union sigval sigval){
+	syslog(LOG_DEBUG,"TIMER THREAD REACHED");
+	char write_string[256];
+	int bytes_written;
+	time_t time_val;
+	struct thread_info *thread_data = (struct thread_info*) sigval.sival_ptr;
+	struct tm *tmp;
+	time_val = time(NULL);
+	tmp = localtime(&time_val);
+	strftime(write_string, sizeof(write_string), "timestamp: %c\n",tmp);
+	syslog(LOG_DEBUG, "SOCKET TIMER: %s", write_string);
+	while(1){
+		if(pthread_mutex_lock(&write_lock) == 0){
+			bytes_written = write(thread_data->input_args.write_fd, write_string, strlen(write_string));
+			if(bytes_written == -1){
+				if (errno == EINTR){
+					continue;
+				}
+				perror("SOCKET WRITE ERROR: ");
+			}
+			else{
+				pthread_mutex_unlock(&write_lock);
+				break;
+			}	
+		}
+	}
+}
+
 //Check the input argument count to ensure both arguments are provided
 int main(int argc, char *argv[]){
 	int skt_fd, connected_skt_fd, daemon_pid, ret_val, writer_fd;
@@ -137,9 +222,18 @@ int main(int argc, char *argv[]){
 	char client_ip[INET_ADDRSTRLEN], client_ip_hostview[INET_ADDRSTRLEN];
 	struct sigaction socket_sigaction;
 	int yes=1;
+	struct sigevent sig_event;
+	struct thread_info thread_data;
+	struct itimerspec itimer;
+	timer_t timer_id;
+	struct slist_data_struct *current_entry;
 
 	openlog(NULL,0,LOG_USER);
 	syslog(LOG_DEBUG,"Starting Script Over");	
+	writer_fd = creat(WRITE_FILE, 0644);
+
+	//Initialize SLIST Head
+	SLIST_INIT(&head);
 
 	//Setup signal handler
 	memset(&socket_sigaction,0,sizeof(struct sigaction));
@@ -213,13 +307,51 @@ int main(int argc, char *argv[]){
 			dup(0);
 		}
 	}
-	writer_fd = creat(WRITE_FILE, 0644);
 
+	//Initialize Timer 	
+	memset(&sig_event,0,sizeof(struct sigevent));
+	sig_event.sigev_notify = SIGEV_THREAD;
+	sig_event.sigev_notify_function = timestamp_logger;
+	sig_event.sigev_value.sival_ptr = &thread_data;
+
+	itimer.it_value.tv_sec = 10;
+	itimer.it_value.tv_nsec = 0;
+	itimer.it_interval.tv_sec = 10;
+	itimer.it_interval.tv_nsec = 0;
+
+	thread_data.input_args.write_fd = writer_fd;
+
+	ret_val = timer_create(CLOCK_MONOTONIC,&sig_event,&timer_id);
+	if(ret_val != 0){
+		perror("SOCKET Error creating timer: ");
+		return -1;
+	}
+	ret_val = timer_settime(timer_id,0,&itimer,NULL);
+	if(ret_val != 0){
+		perror("SOCKET Error setting timer: ");
+		return -1;
+	}
+	
 	while(1){
 		//Establish Accepted Connection
 		sktaddr_size = sizeof connected_sktaddr; 
 		if(caught_signal == true){
-			syslog(LOG_DEBUG, "Caught signal, exiting");
+			syslog(LOG_DEBUG, "SOCKET: Caught signal, exiting");
+			timer_delete(timer_id);
+			SLIST_FOREACH(current_entry, &head, entries){
+				if(current_entry->tinfo.input_args.thread_complete == 1){
+					pthread_join(current_entry->tinfo.thread_id,NULL);
+				}
+				//Close connection
+				close(current_entry->tinfo.input_args.connected_skt_fd);
+			}
+			//Free all elements of SLIST
+			struct slist_data_struct *tmp_slist_struct;
+			while(SLIST_EMPTY(&head) != 0){
+				tmp_slist_struct = SLIST_FIRST(&head);
+				SLIST_REMOVE_HEAD(&head, entries);
+				free(tmp_slist_struct);
+			}
 			close(skt_fd);
 			close(writer_fd);
 			remove(WRITE_FILE);
@@ -240,15 +372,20 @@ int main(int argc, char *argv[]){
 		strcpy(client_ip_hostview,client_ip);
 		flip_ip_addr(client_ip_hostview);
 		syslog(LOG_DEBUG,"Accepted connection from %s (host format)",client_ip_hostview);	
-
-		//Receive, Store, Read back, and Send data back
-		receive_and_write_to_file(connected_skt_fd, writer_fd);
-		read_file_and_send(connected_skt_fd);
-
-		//Close connection
-		close(connected_skt_fd);
-		syslog(LOG_DEBUG,"Closed connection from %s",client_ip_hostview);	
-
+		
+		//Launch Thread and Create SLIST entry to store thread ID
+		add_slist_entry(connected_skt_fd, writer_fd);
+		//Check for Threads ready for joining
+		SLIST_FOREACH(current_entry, &head, entries){
+			if(current_entry->tinfo.input_args.thread_complete == 1){
+				syslog(LOG_DEBUG,"SLIST: Attempting to join thread pointed to by %i",current_entry->tinfo.input_args.connected_skt_fd);
+				pthread_join(current_entry->tinfo.thread_id,NULL);
+				//Close connection
+				close(current_entry->tinfo.input_args.connected_skt_fd);
+				syslog(LOG_DEBUG,"SOCKET Closed connection from %s",client_ip_hostview);	
+			}
+			current_entry->tinfo.input_args.thread_complete = 0;
+		}
 	}
 	return 0;
 }

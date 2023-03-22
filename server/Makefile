@@ -7,12 +7,15 @@ CROSS_CC=aarch64-none-linux-gnu-
 SRC=aesdsocket.c
 OBJ=aesdsocket
 CROSS_COMPILE=none
+CFLAGS= -g -Wall -Werror -pthread
+LRT= -lrt
 
-default: $(OBJ)
+
+default: $(SRC)
 ifeq ($(CROSS_COMPILE), $(CROSS_CC))
-	$(CROSS_CC)$(CC) -o $(OBJ) $(SRC) 
+	$(CROSS_CC)$(CC) $(CFLAGS) -o $(OBJ) $(SRC) $(LRT)
 else
-	$(CC) -o $(OBJ) $(SRC)
+	$(CC) $(CFLAGS) -o $(OBJ) $(SRC) $(LRT)
 endif
 
 clean:
