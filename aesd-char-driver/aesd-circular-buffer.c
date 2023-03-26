@@ -12,9 +12,12 @@
 #include <linux/string.h>
 #else
 #include <string.h>
+#include <stdio.h>
 #endif
 
 #include "aesd-circular-buffer.h"
+
+#define BUFFER_SIZE 10
 
 /**
  * @param buffer the buffer to search for corresponding offset.  Any necessary locking must be performed by caller.
@@ -26,13 +29,50 @@
  * @return the struct aesd_buffer_entry structure representing the position described by char_offset, or
  * NULL if this position is not available in the buffer (not enough data is written).
  */
-struct aesd_buffer_entry *aesd_circular_buffer_find_entry_offset_for_fpos(struct aesd_circular_buffer *buffer,
-            size_t char_offset, size_t *entry_offset_byte_rtn )
+struct aesd_buffer_entry *aesd_circular_buffer_find_entry_offset_for_fpos(struct aesd_circular_buffer *buffer, size_t char_offset, size_t *entry_offset_byte_rtn )
 {
-    /**
-    * TODO: implement per description
-    */
-    return NULL;
+	struct aesd_buffer_entry *output_entry;
+	size_t entry_size;
+	size_t total_end_entry = 0;
+	size_t total_beginning_entry = 0;
+	int loop_count = 0;
+	uint8_t restore_out_offs;
+
+	//Find where in_offs is when this function is called so they can be restored before exit
+	restore_out_offs = buffer->out_offs;
+	//printf("Location of out_offs pointer at start: %i\n", restore_out_offs);
+
+	while(1){
+		loop_count = loop_count + 1;
+		entry_size = buffer->entry[buffer->out_offs].size;
+		//printf("Entry size is %li\n", entry_size);
+		total_beginning_entry = total_end_entry;
+		total_end_entry	= entry_size + total_beginning_entry;
+		//printf("Total @ BE is %li, @EE is %li and char_offset is %li\n", total_beginning_entry, total_end_entry, char_offset);
+		if(char_offset >= total_end_entry){
+			buffer->out_offs = buffer->out_offs + 1;
+			if(buffer->out_offs >= 10){
+				buffer->out_offs = 0;
+			}
+			//printf("next Out_offs is %i\n", buffer->out_offs);
+			if(loop_count >= BUFFER_SIZE){
+				buffer->out_offs = restore_out_offs;
+				//printf("Location of in_offs pointer at exit: %i\n", buffer->out_offs);
+				return NULL;
+			}
+			continue;
+		}
+		else if(char_offset >= total_beginning_entry){
+			*entry_offset_byte_rtn = char_offset - total_beginning_entry;
+			output_entry = &buffer->entry[buffer->out_offs];
+			buffer->out_offs = restore_out_offs;
+			//printf("Location of in_offs pointer at exit: %i\n", buffer->out_offs);
+			return output_entry;
+		}
+	}
+	
+	buffer->out_offs = restore_out_offs;
+	return NULL;
 }
 
 /**
@@ -44,9 +84,16 @@ struct aesd_buffer_entry *aesd_circular_buffer_find_entry_offset_for_fpos(struct
 */
 void aesd_circular_buffer_add_entry(struct aesd_circular_buffer *buffer, const struct aesd_buffer_entry *add_entry)
 {
-    /**
-    * TODO: implement per description
-    */
+	if(buffer->entry[buffer->in_offs].buffptr != NULL){
+		//printf("Buffer is Full!!!!!!!!!!!!!!!!\n");
+		buffer->out_offs = buffer->out_offs + 1;
+	}
+	buffer->entry[buffer->in_offs].buffptr = add_entry->buffptr;
+	buffer->entry[buffer->in_offs].size = strlen(add_entry->buffptr);	
+	buffer->in_offs = buffer->in_offs + 1;
+	if(buffer->in_offs >= BUFFER_SIZE){
+		buffer->in_offs = 0;
+	}
 }
 
 /**
