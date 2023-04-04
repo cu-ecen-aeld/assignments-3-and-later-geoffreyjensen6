@@ -7,12 +7,27 @@
  * @copyright Copyright (c) 2020
  *
  */
-
 #ifdef __KERNEL__
 #include <linux/string.h>
+#include <linux/printk.h>
 #else
 #include <string.h>
 #include <stdio.h>
+#endif
+
+#define AESD_DEBUG 1  //Remove comment on this line to enable debug
+
+#undef PDEBUG             /* undef it, just in case */
+#ifdef AESD_DEBUG
+#  ifdef __KERNEL__
+     /* This one if debugging is on, and kernel space */
+#    define PDEBUG(fmt, args...) printk( KERN_DEBUG "aesdchar: " fmt, ## args)
+#  else
+     /* This one for user space */
+#    define PDEBUG(fmt, args...) fprintf(stderr, fmt, ## args)
+#  endif
+#else
+#  define PDEBUG(fmt, args...) /* not debugging: nothing */
 #endif
 
 #include "aesd-circular-buffer.h"
@@ -85,7 +100,7 @@ struct aesd_buffer_entry *aesd_circular_buffer_find_entry_offset_for_fpos(struct
 void aesd_circular_buffer_add_entry(struct aesd_circular_buffer *buffer, const struct aesd_buffer_entry *add_entry)
 {
 	if(buffer->entry[buffer->in_offs].buffptr != NULL){
-		//printf("Buffer is Full!!!!!!!!!!!!!!!!\n");
+		PDEBUG("Buffer is Full!!!!!!!!!!!!!!!!\n");
 		buffer->out_offs = buffer->out_offs + 1;
 	}
 	buffer->entry[buffer->in_offs].buffptr = add_entry->buffptr;
