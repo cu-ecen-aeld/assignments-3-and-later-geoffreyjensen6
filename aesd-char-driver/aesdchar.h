@@ -33,8 +33,10 @@ struct aesd_dev
     struct aesd_circular_buffer *buffer;
     struct aesd_buffer_entry *buffer_entry;
     struct semaphore buffer_lock;
-    char *write_buffer;
+    //char *write_buffer;
     int end_of_packet;
+    int first_packet;
+    struct mutex lock;
     struct cdev cdev;     /* Char device structure      */
 };
 

@@ -70,52 +70,64 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
      * TODO: handle write
      */
     //begin edits
-    //aesd_device = filp->private_data;
+    struct aesd_dev *dev = filp->private_data;
     char newline = '\n';
     
     //Allocate write buffer space
-    aesd_device.write_buffer = (char *)kmalloc(count * sizeof(char *),GFP_KERNEL);
-    PDEBUG("Size of write_buffer is %li", sizeof(aesd_device.write_buffer));
-    if(!aesd_device.write_buffer){
-	    goto out;
+    char *write_buffer = (char *)kmalloc(count * sizeof(char *),GFP_KERNEL);
+    if(!write_buffer){
+	    goto exit;
     }
-    memset(aesd_device.write_buffer, 0, count * sizeof(char *));
+    memset(write_buffer, 0, count * sizeof(char *));
 
-    //Allocate new entry
-    if(aesd_device.end_of_packet == 0){
-	aesd_device.buffer_entry = kmalloc(sizeof(struct aesd_buffer_entry),GFP_KERNEL);
-	memset(aesd_device.buffer_entry, 0, sizeof(struct aesd_buffer_entry));
-    }
-    
-    //Copy contents to kernel space
-    if(copy_from_user(aesd_device.write_buffer, buf, count)){
+    //Copy contents from user space to kernel space
+    if(copy_from_user(write_buffer, buf, count)){
 	retval = -EFAULT;
-	goto out;
+	goto exit;
     }
-    PDEBUG("Write Buffer is %s", aesd_device.write_buffer);
-    aesd_device.buffer_entry->buffptr = aesd_device.write_buffer;
-    aesd_device.buffer_entry->size = count;
+    PDEBUG("Write Buffer is %s", write_buffer);
+
+    //Lock here. Locking all contents of dev by keeping all accesses to dev within the lock section
+    //Makes it so other threads wouldn't make it past this unless they obtained lock. 
+    //Release lock after updating first_packet in writing piece.
+    mutex_lock_interruptible(&dev->lock);
+    
+    //Allocate new entry if it doesn't exist currently
+    if(dev->first_packet == 0){
+	PDEBUG("First packet of write operation. Allocating memory");
+	dev->buffer_entry = kmalloc(sizeof(struct aesd_buffer_entry),GFP_KERNEL);
+	memset(dev->buffer_entry, 0, sizeof(struct aesd_buffer_entry));
+	dev->buffer_entry->size = 0;
+	dev->first_packet = 1;
+    }
 
     //Check for newline to indicate partial or complete write
-    if(strchr(aesd_device.write_buffer, newline)){
-	aesd_device.end_of_packet = 1;
-    }
-    PDEBUG("End of Packet is: %i", aesd_device.end_of_packet);
+    if(strchr(write_buffer, newline)){
+	dev->end_of_packet = 1;
+    }    
     
-    //Since it is full packet, go ahead and write entry to circular buffer
-    if(aesd_device.end_of_packet == 1){
-        aesd_circular_buffer_add_entry(aesd_device.buffer, aesd_device.buffer_entry);
-	kfree(aesd_device.buffer_entry);
-	aesd_device.end_of_packet = 0;
-    }
+    //Add contents to entry
+    //strcat(dev->buffer_entry->buffptr,write_buffer);
+    dev->buffer_entry->buffptr = write_buffer;
+    //dev->buffer_entry->size = dev->buffer_entry->size + count;
+    dev->buffer_entry->size = count;
 
-    kfree(aesd_device.write_buffer);
+    //Check for newline to indicate partial or complete write
+    if(dev->end_of_packet == 1){
+    	//Since it is full packet, go ahead and write entry to circular buffer
+	PDEBUG("Writing entry to buffer and freeing");
+        aesd_circular_buffer_add_entry(dev->buffer, dev->buffer_entry);
+	kfree(dev->buffer_entry);
+	dev->first_packet = 0;
+    }
+    mutex_unlock(&dev->lock);
+    PDEBUG("Freeing write buffer");
+    kfree(write_buffer);
     retval = count;
 
-    out:
-    
-    //end edits
-    return retval;
+    exit:
+	//end edits
+	return retval;
 }
 struct file_operations aesd_fops = {
     .owner =    THIS_MODULE,
@@ -161,6 +173,8 @@ int aesd_init_module(void)
     aesd_device.buffer = kmalloc(sizeof(struct aesd_circular_buffer),GFP_KERNEL);
     //aesd_device.buffer_entry = kmalloc(sizeof(struct aesd_buffer_entry),GFP_KERNEL);
     aesd_device.end_of_packet = 0;
+    aesd_device.first_packet = 0;
+    mutex_init(&aesd_device.lock);
     //aesd_device.buffer_lock = kmalloc(sizeof(struct semaphore),GFP_KERNEL);
     memset(aesd_device.buffer,0,sizeof(struct aesd_circular_buffer));
     //memset(aesd_device.buffer_entry,0,sizeof(struct aesd_buffer_entry));
