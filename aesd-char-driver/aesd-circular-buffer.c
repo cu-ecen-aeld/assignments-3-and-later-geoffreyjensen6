@@ -56,12 +56,12 @@ struct aesd_buffer_entry *aesd_circular_buffer_find_entry_offset_for_fpos(struct
 
 	//Find where in_offs is when this function is called so they can be restored before exit
 	restore_out_offs = buffer->out_offs;
-	//PDEBUG("Location of out_offs pointer at start: %i\n", restore_out_offs);
+	PDEBUG("Location of out_offs pointer at start: %i\n", restore_out_offs);
 
 	while(1){
 		loop_count = loop_count + 1;
 		entry_size = buffer->entry[buffer->out_offs].size;
-		//PDEBUG("Entry size is %li\n", entry_size);
+		PDEBUG("Entry size is %li\n", entry_size);
 		//PDEBUG("Entry is %s\n", buffer->entry[buffer->out_offs].buffptr);
 		total_beginning_entry = total_end_entry;
 		total_end_entry	= entry_size + total_beginning_entry;
@@ -108,6 +108,9 @@ const char *aesd_circular_buffer_add_entry(struct aesd_circular_buffer *buffer, 
 		//return_struct = buffer->entry[buffer->in_offs];
 		return_buffer = buffer->entry[buffer->in_offs].buffptr;
 		buffer->out_offs = buffer->out_offs + 1;
+		if(buffer->out_offs >= BUFFER_SIZE){
+			buffer->out_offs = 0;
+		}
 	}
 	else{
 		return_buffer = NULL;
@@ -124,8 +127,8 @@ const char *aesd_circular_buffer_add_entry(struct aesd_circular_buffer *buffer, 
 
 void aesd_print_circular_buffer(struct aesd_circular_buffer *buffer)
 {
-	PDEBUG("Buffer Entry 0 = %s", buffer->entry[0].buffptr);
-	PDEBUG("Buffer Entry 1 = %s", buffer->entry[1].buffptr);
+	PDEBUG("Buffer Entry 0 = %s", buffer->entry[0]);
+	PDEBUG("Buffer Entry 1 = %s", buffer->entry[1]);
 	PDEBUG("Buffer Entry 2 = %s", buffer->entry[2]);
 	PDEBUG("Buffer Entry 3 = %s", buffer->entry[3]);
 	PDEBUG("Buffer Entry 4 = %s", buffer->entry[4]);
@@ -134,7 +137,6 @@ void aesd_print_circular_buffer(struct aesd_circular_buffer *buffer)
 	PDEBUG("Buffer Entry 7 = %s", buffer->entry[7]);
 	PDEBUG("Buffer Entry 8 = %s", buffer->entry[8]);
 	PDEBUG("Buffer Entry 9 = %s", buffer->entry[9]);
-	PDEBUG("Buffer Entry 10 = %s", buffer->entry[10]);
 	PDEBUG("Current In_Offs is = %d", buffer->in_offs);
 	PDEBUG("Current Out_Offs is = %d", buffer->out_offs);
 }
