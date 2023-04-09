@@ -10,6 +10,7 @@
 #ifdef __KERNEL__
 #include <linux/string.h>
 #include <linux/printk.h>
+#include <linux/slab.h>
 #else
 #include <string.h>
 #include <stdio.h>
@@ -99,11 +100,17 @@ struct aesd_buffer_entry *aesd_circular_buffer_find_entry_offset_for_fpos(struct
 * Any necessary locking must be handled by the caller
 * Any memory referenced in @param add_entry must be allocated by and/or must have a lifetime managed by the caller.
 */
-void aesd_circular_buffer_add_entry(struct aesd_circular_buffer *buffer, const struct aesd_buffer_entry *add_entry)
+const char *aesd_circular_buffer_add_entry(struct aesd_circular_buffer *buffer, const struct aesd_buffer_entry *add_entry)
 {
+	char *return_buffer = (char *)kmalloc(strlen(add_entry->buffptr) * sizeof(char), GFP_KERNEL);
 	if(buffer->entry[buffer->in_offs].buffptr != NULL){
 		PDEBUG("Buffer is Full!!!!!!!!!!!!!!!!\n");
+		//return_struct = buffer->entry[buffer->in_offs];
+		return_buffer = buffer->entry[buffer->in_offs].buffptr;
 		buffer->out_offs = buffer->out_offs + 1;
+	}
+	else{
+		return_buffer = NULL;
 	}
 	buffer->entry[buffer->in_offs].buffptr = add_entry->buffptr;
 	buffer->entry[buffer->in_offs].size = strlen(add_entry->buffptr);	
@@ -111,8 +118,8 @@ void aesd_circular_buffer_add_entry(struct aesd_circular_buffer *buffer, const s
 	if(buffer->in_offs >= BUFFER_SIZE){
 		buffer->in_offs = 0;
 	}
-	PDEBUG("FINAL INSTANCE OF CIRCULAR BUFFER");
 	aesd_print_circular_buffer(buffer);
+	return return_buffer;
 }
 
 void aesd_print_circular_buffer(struct aesd_circular_buffer *buffer)
@@ -128,6 +135,8 @@ void aesd_print_circular_buffer(struct aesd_circular_buffer *buffer)
 	PDEBUG("Buffer Entry 8 = %s", buffer->entry[8]);
 	PDEBUG("Buffer Entry 9 = %s", buffer->entry[9]);
 	PDEBUG("Buffer Entry 10 = %s", buffer->entry[10]);
+	PDEBUG("Current In_Offs is = %d", buffer->in_offs);
+	PDEBUG("Current Out_Offs is = %d", buffer->out_offs);
 }
 
 /**

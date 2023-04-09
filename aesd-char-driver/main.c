@@ -60,10 +60,10 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
     char *read_buffer;
     mutex_lock_interruptible(&dev->lock);
     int i=0;
-    dev->buffer_entry = (struct aesd_buffer_entry*)kmalloc(sizeof(struct aesd_buffer_entry),GFP_KERNEL);
+    //dev->buffer_entry = (struct aesd_buffer_entry*)kmalloc(sizeof(struct aesd_buffer_entry),GFP_KERNEL);
     read_buffer = (char *)kmalloc(count * sizeof(char *),GFP_KERNEL); 
     //memset(dev->buffer_entry, 0, sizeof(struct aesd_buffer_entry));
-    //buffer_entry = (struct aesd_buffer_entry *)kmalloc(sizeof(struct aesd_buffer_entry),GFP_KERNEL);
+    buffer_entry = (struct aesd_buffer_entry *)kmalloc(sizeof(struct aesd_buffer_entry),GFP_KERNEL);
     size_t rtn_byte;
     loff_t entry_pos;
     rtn_byte = 0;
@@ -97,6 +97,7 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
     PDEBUG("Retval is %li", retval);
     copy_to_user(buf, read_buffer, (strlen(read_buffer)+1));
     kfree(read_buffer);
+    //kfree(buffer_entry);
     mutex_unlock(&dev->lock);
     return retval;
 }
@@ -109,6 +110,7 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
     char newline = '\n';
     struct aesd_buffer_entry *buffer_entry; 
     char *write_buffer;
+    const char *buffer_to_free;
     PDEBUG("write %zu bytes with offset %lld",count,*f_pos);
     
     mutex_lock_interruptible(&dev->lock);
@@ -160,16 +162,23 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
     if(dev->end_of_packet == 1){
     	//Since it is full packet, go ahead and write entry to circular buffer
 	PDEBUG("Writing entry to buffer and freeing");
-        aesd_circular_buffer_add_entry(dev->buffer, buffer_entry);
+        buffer_to_free = aesd_circular_buffer_add_entry(dev->buffer, buffer_entry);
+	if(buffer_to_free != NULL){
+	    PDEBUG("Freeing buffer with contents %s", buffer_to_free);
+	    kfree(buffer_to_free);
+	}
 	//kfree(dev->buffer_entry);
 	dev->first_packet = 0;
+	retval = count;
     }
     kfree(write_buffer);
-    mutex_unlock(&dev->lock);
     PDEBUG("Freeing write buffer");
+    PDEBUG("Retval is %ld", retval);
+    PDEBUG("Another Print");
     
     exit:
 	//end edits
+	mutex_unlock(&dev->lock);
 	return retval;
 }
 struct file_operations aesd_fops = {
@@ -243,11 +252,10 @@ void aesd_cleanup_module(void)
     /**
      * TODO: cleanup AESD specific poritions here as necessary
      */
+    PDEBUG("CLEANING UP");
 
     unregister_chrdev_region(devno, 1);
 }
-
-
 
 module_init(aesd_init_module);
 module_exit(aesd_cleanup_module);
