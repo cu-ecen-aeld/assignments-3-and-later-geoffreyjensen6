@@ -121,6 +121,7 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
 	    goto exit;
     }
     memset(write_buffer, 0, count * sizeof(char *));
+    PDEBUG("Write_buffer initial value=%s and length=%li",write_buffer,strlen(write_buffer));
 
     //Copy contents from user space to kernel space
     if(copy_from_user(write_buffer, buf, count)){
@@ -137,6 +138,7 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
 	new_length = strlen(write_buffer)+1;
 	PDEBUG("Calling Malloc for buffptr");
 	dev->buffer_entry->buffptr = (char *)kmalloc(new_length * sizeof(char),GFP_KERNEL);
+	memset(dev->buffer_entry->buffptr, 0, new_length * sizeof(char));
     }
     else{
 	new_length = dev->buffer_entry->size + strlen(write_buffer)+1;
