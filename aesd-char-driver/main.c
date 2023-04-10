@@ -62,6 +62,7 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
     int i=0;
     //dev->buffer_entry = (struct aesd_buffer_entry*)kmalloc(sizeof(struct aesd_buffer_entry),GFP_KERNEL);
     read_buffer = (char *)kmalloc(count * sizeof(char *),GFP_KERNEL); 
+    memset(read_buffer, 0, (count * sizeof(char*)));
     //memset(dev->buffer_entry, 0, sizeof(struct aesd_buffer_entry));
     //buffer_entry = (struct aesd_buffer_entry *)kmalloc(sizeof(struct aesd_buffer_entry),GFP_KERNEL);
     size_t rtn_byte;
