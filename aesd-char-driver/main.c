@@ -73,6 +73,8 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
     dev->read_entry = aesd_circular_buffer_find_entry_offset_for_fpos(dev->buffer, *f_pos, &rtn_byte);
     PDEBUG("Done Read of Entry");
     if(!dev->read_entry){
+	mutex_unlock(&dev->lock);
+
     	return 0;
     }
     PDEBUG("return byte is %li", rtn_byte);
@@ -146,7 +148,8 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
         goto exit;
     }
     PDEBUG("dev-buffer_entry->buffptr is %p", dev->buffer_entry->buffptr);
-    strcat(dev->buffer_entry->buffptr, write_buffer);
+    dev->buffer_entry->buffptr = strcat(dev->buffer_entry->buffptr, write_buffer);
+    retval = count;
     PDEBUG("Writing Entry: %s", dev->buffer_entry->buffptr);
     dev->buffer_entry->size = new_length;
     dev->first_packet = 1;
@@ -179,17 +182,16 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
 	    kfree(buffer_to_free);
 	}
 	dev->first_packet = 0;
-	retval = count;
 	dev->end_of_packet = 0;
     }
     kfree(write_buffer);
     PDEBUG("Freeing write buffer");
     PDEBUG("Retval is %ld", retval);
-    PDEBUG("Another Print");
-    
+        
     exit:
 	//end edits
 	mutex_unlock(&dev->lock);
+	PDEBUG("Another Print");
 	return retval;
 }
 struct file_operations aesd_fops = {

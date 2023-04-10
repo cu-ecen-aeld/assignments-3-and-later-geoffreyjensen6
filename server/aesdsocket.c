@@ -21,9 +21,16 @@ Date: 03/21/2023
 #include <pthread.h>
 #include <time.h>
 
+#define USE_AESD_CHAR_DEVICE 1  //Set to 1 by default in Assignment 8
+
+#ifdef USE_AESD_CHAR_DEVICE
+#  define WRITE_FILE "/dev/aesdchar"
+#else
+#  define WRITE_FILE "/var/tmp/aesdsocketdata"
+#endif
+
 #define PORT "9000"
 #define BACKLOG 20
-#define WRITE_FILE "/var/tmp/aesdsocketdata"
 #define READ_WRITE_SIZE 1024
 
 bool caught_signal = false;
@@ -309,29 +316,31 @@ int main(int argc, char *argv[]){
 	}
 
 	//Initialize Timer 	
-	memset(&sig_event,0,sizeof(struct sigevent));
-	sig_event.sigev_notify = SIGEV_THREAD;
-	sig_event.sigev_notify_function = timestamp_logger;
-	sig_event.sigev_value.sival_ptr = &thread_data;
+	if(!USE_AESD_CHAR_DEVICE){
+		memset(&sig_event,0,sizeof(struct sigevent));
+		sig_event.sigev_notify = SIGEV_THREAD;
+		sig_event.sigev_notify_function = timestamp_logger;
+		sig_event.sigev_value.sival_ptr = &thread_data;
 
-	itimer.it_value.tv_sec = 10;
-	itimer.it_value.tv_nsec = 0;
-	itimer.it_interval.tv_sec = 10;
-	itimer.it_interval.tv_nsec = 0;
+		itimer.it_value.tv_sec = 10;
+		itimer.it_value.tv_nsec = 0;
+		itimer.it_interval.tv_sec = 10;
+		itimer.it_interval.tv_nsec = 0;
+	
+		ret_val = timer_create(CLOCK_MONOTONIC,&sig_event,&timer_id);
+		if(ret_val != 0){
+			perror("SOCKET Error creating timer: ");
+			return -1;
+		}
+		ret_val = timer_settime(timer_id,0,&itimer,NULL);
+		if(ret_val != 0){
+			perror("SOCKET Error setting timer: ");
+			return -1;
+		}
+	}
 
 	thread_data.input_args.write_fd = writer_fd;
 
-	ret_val = timer_create(CLOCK_MONOTONIC,&sig_event,&timer_id);
-	if(ret_val != 0){
-		perror("SOCKET Error creating timer: ");
-		return -1;
-	}
-	ret_val = timer_settime(timer_id,0,&itimer,NULL);
-	if(ret_val != 0){
-		perror("SOCKET Error setting timer: ");
-		return -1;
-	}
-	
 	while(1){
 		//Establish Accepted Connection
 		sktaddr_size = sizeof connected_sktaddr; 
@@ -354,7 +363,9 @@ int main(int argc, char *argv[]){
 			}
 			close(skt_fd);
 			close(writer_fd);
-			remove(WRITE_FILE);
+			if(!USE_AESD_CHAR_DEVICE){
+				remove(WRITE_FILE);
+			}
 			closelog();
 			return 0;
 		}
