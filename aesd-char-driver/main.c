@@ -263,7 +263,9 @@ int aesd_init_module(void)
 
 void aesd_cleanup_module(void)
 {
+    PDEBUG("In Cleanup Module");
     dev_t devno = MKDEV(aesd_major, aesd_minor);
+    PDEBUG("PAST FIRST LINE");
 
     cdev_del(&aesd_device.cdev);
 
@@ -271,10 +273,9 @@ void aesd_cleanup_module(void)
      * TODO: cleanup AESD specific poritions here as necessary
      */
     PDEBUG("CLEANING UP");
-    kfree(aesd_device.buffer);
-    kfree(aesd_device.buffer_entry);
     kfree(aesd_device.read_entry);
-
+    kfree(aesd_device.buffer_entry);
+    kfree(aesd_device.buffer); 
 
     unregister_chrdev_region(devno, 1);
 }

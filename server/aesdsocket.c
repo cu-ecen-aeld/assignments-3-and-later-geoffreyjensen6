@@ -21,7 +21,7 @@ Date: 03/21/2023
 #include <pthread.h>
 #include <time.h>
 
-#define USE_AESD_CHAR_DEVICE 1  //Set to 1 by default in Assignment 8
+#define USE_AESD_CHAR_DEVICE 0  //Set to 1 by default in Assignment 8
 
 #ifdef USE_AESD_CHAR_DEVICE
 #  define WRITE_FILE "/dev/aesdchar"
@@ -37,7 +37,6 @@ bool caught_signal = false;
 
 struct arg_struct {
 	int connected_skt_fd;
-	int write_fd;
 	int thread_complete;
 };
 
@@ -75,11 +74,17 @@ void flip_ip_addr(char *ip_addr){
 	return;
 }
 
-void receive_and_write_to_file(int socket_fd, int writer_fd){
+void receive_and_write_to_file(int socket_fd){
 	ssize_t bytes_read, bytes_written;
 	char read_buffer[READ_WRITE_SIZE] = "";
 	char newline = '\n';
 	int end_of_packet = 0;
+	//int writer_fd = creat(WRITE_FILE, 0644);
+	int writer_fd = open(WRITE_FILE, O_WRONLY | O_CREAT | O_APPEND, 0644);
+	syslog(LOG_DEBUG, "Writer FD is %i", writer_fd);
+	if(writer_fd == -1){
+		perror("Unable to open WRITE_FILE: ");
+	}
 
 	while(end_of_packet == 0){
 		if((bytes_read = recv(socket_fd,read_buffer,READ_WRITE_SIZE,0)) != 0){
@@ -89,7 +94,7 @@ void receive_and_write_to_file(int socket_fd, int writer_fd){
 				}
 				perror("SOCKET RECV ERROR: ");
 				syslog(LOG_DEBUG,"FD is %i",socket_fd);
-				return;
+				break;
 			}	
 			//syslog(LOG_DEBUG,"RECV: %li bytes and read_buffer=%s",bytes_read,read_buffer);
 			if(strchr(read_buffer,newline) != NULL){
@@ -103,17 +108,18 @@ void receive_and_write_to_file(int socket_fd, int writer_fd){
 							continue;
 						}
 						perror("SOCKET WRITE ERROR: ");
-						return;
+						break;
 					}
 					else{
 						pthread_mutex_unlock(&write_lock);
-						break;
+						break;;
 					}
 				}
 			}
 		}
 
 	}
+	close(writer_fd);
 	return;
 }
 
@@ -122,7 +128,11 @@ void read_file_and_send(int socket_fd){
 	char write_buffer[READ_WRITE_SIZE] = "";
 	int reader_fd;
 
-	reader_fd = open(WRITE_FILE, 0444);
+	reader_fd = open(WRITE_FILE, O_RDONLY, 0444);
+	syslog(LOG_DEBUG, "Reader FD is %i", reader_fd);
+	if(reader_fd == -1){
+		perror("Unable to open WRITE_FILE: ");
+	}
 	while ((bytes_read = read(reader_fd,write_buffer,READ_WRITE_SIZE)) != 0){
 		if(bytes_read == -1) {
 			if (errno == EINTR){
@@ -159,21 +169,21 @@ static void socket_signal_handler (int signal_number){
 void *data_processor(void *input_args){
 	struct arg_struct *in_args = input_args;
 	//Receive, Store, Read back, and Send data back
-	receive_and_write_to_file(in_args->connected_skt_fd, in_args->write_fd);
+	receive_and_write_to_file(in_args->connected_skt_fd);
 	read_file_and_send(in_args->connected_skt_fd);
 	in_args->thread_complete = 1;
 
 	return input_args;
 }
 
-int add_slist_entry(int connected_skt_fd, int writer_fd){
+int add_slist_entry(int connected_skt_fd){
 	struct slist_data_struct *entry;
 	struct slist_data_struct *current_entry;
 
 	entry  = (struct slist_data_struct*)malloc(sizeof(struct slist_data_struct));
 
 	entry->tinfo.input_args.connected_skt_fd = connected_skt_fd;
-	entry->tinfo.input_args.write_fd = writer_fd;
+	//entry->tinfo.input_args.write_fd = writer_fd;
 	entry->tinfo.input_args.thread_complete = 0;
 	pthread_create(&entry->tinfo.thread_id,NULL,data_processor,(void *)&entry->tinfo.input_args);
 
@@ -196,15 +206,19 @@ void timestamp_logger(union sigval sigval){
 	char write_string[256];
 	int bytes_written;
 	time_t time_val;
-	struct thread_info *thread_data = (struct thread_info*) sigval.sival_ptr;
 	struct tm *tmp;
+	int writer_fd = open(WRITE_FILE, O_WRONLY | O_CREAT | O_APPEND, 0666);
+	syslog(LOG_DEBUG, "Writer FD is %i", writer_fd);
+	if(writer_fd == -1){
+		perror("Unable to open WRITE_FILE: ");
+	}
 	time_val = time(NULL);
 	tmp = localtime(&time_val);
 	strftime(write_string, sizeof(write_string), "timestamp: %c\n",tmp);
 	syslog(LOG_DEBUG, "SOCKET TIMER: %s", write_string);
 	while(1){
 		if(pthread_mutex_lock(&write_lock) == 0){
-			bytes_written = write(thread_data->input_args.write_fd, write_string, strlen(write_string));
+			bytes_written = write(writer_fd, write_string, strlen(write_string));
 			if(bytes_written == -1){
 				if (errno == EINTR){
 					continue;
@@ -217,11 +231,13 @@ void timestamp_logger(union sigval sigval){
 			}	
 		}
 	}
+	close(writer_fd);
+	return;
 }
 
 //Check the input argument count to ensure both arguments are provided
 int main(int argc, char *argv[]){
-	int skt_fd, connected_skt_fd, daemon_pid, ret_val, writer_fd;
+	int skt_fd, connected_skt_fd, daemon_pid, ret_val;
 	struct addrinfo skt_addrinfo, *res_skt_addrinfo, *rp;
 	struct sockaddr connected_sktaddr;
 	struct sockaddr_in *ip_addr = (struct sockaddr_in *)&connected_sktaddr;
@@ -237,7 +253,6 @@ int main(int argc, char *argv[]){
 
 	openlog(NULL,0,LOG_USER);
 	syslog(LOG_DEBUG,"Starting Script Over");	
-	writer_fd = creat(WRITE_FILE, 0644);
 
 	//Initialize SLIST Head
 	SLIST_INIT(&head);
@@ -339,7 +354,7 @@ int main(int argc, char *argv[]){
 		}
 	}
 
-	thread_data.input_args.write_fd = writer_fd;
+	//thread_data.input_args.write_fd = writer_fd;
 
 	while(1){
 		//Establish Accepted Connection
@@ -362,7 +377,7 @@ int main(int argc, char *argv[]){
 				free(tmp_slist_struct);
 			}
 			close(skt_fd);
-			close(writer_fd);
+			//close(writer_fd);
 			if(!USE_AESD_CHAR_DEVICE){
 				remove(WRITE_FILE);
 			}
@@ -385,7 +400,7 @@ int main(int argc, char *argv[]){
 		syslog(LOG_DEBUG,"Accepted connection from %s (host format)",client_ip_hostview);	
 		
 		//Launch Thread and Create SLIST entry to store thread ID
-		add_slist_entry(connected_skt_fd, writer_fd);
+		add_slist_entry(connected_skt_fd);
 		//Check for Threads ready for joining
 		SLIST_FOREACH(current_entry, &head, entries){
 			if(current_entry->tinfo.input_args.thread_complete == 1){
