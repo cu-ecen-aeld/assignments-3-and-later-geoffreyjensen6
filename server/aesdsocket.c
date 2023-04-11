@@ -21,7 +21,7 @@ Date: 03/21/2023
 #include <pthread.h>
 #include <time.h>
 
-#define USE_AESD_CHAR_DEVICE 0  //Set to 1 by default in Assignment 8
+#define USE_AESD_CHAR_DEVICE 1  //Set to 1 by default in Assignment 8
 
 #ifdef USE_AESD_CHAR_DEVICE
 #  define WRITE_FILE "/dev/aesdchar"
