@@ -33,7 +33,6 @@ struct aesd_dev
     struct aesd_circular_buffer *buffer;
     struct aesd_buffer_entry *buffer_entry;
     struct aesd_buffer_entry *read_entry;
-    struct semaphore buffer_lock;
     int end_of_packet;
     int first_packet;
     struct mutex lock;

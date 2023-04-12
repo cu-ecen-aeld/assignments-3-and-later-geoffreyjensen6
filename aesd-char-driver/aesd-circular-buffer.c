@@ -61,7 +61,7 @@ struct aesd_buffer_entry *aesd_circular_buffer_find_entry_offset_for_fpos(struct
 	while(1){
 		loop_count = loop_count + 1;
 		entry_size = buffer->entry[buffer->out_offs].size;
-		PDEBUG("Entry size is %li\n", entry_size);
+		//PDEBUG("Entry size is %li\n", entry_size);
 		//PDEBUG("Entry is %s\n", buffer->entry[buffer->out_offs].buffptr);
 		total_beginning_entry = total_end_entry;
 		total_end_entry	= entry_size + total_beginning_entry;
@@ -103,9 +103,12 @@ struct aesd_buffer_entry *aesd_circular_buffer_find_entry_offset_for_fpos(struct
 const char *aesd_circular_buffer_add_entry(struct aesd_circular_buffer *buffer, const struct aesd_buffer_entry *add_entry)
 {
 	char *return_buffer = (char *)kmalloc(strlen(add_entry->buffptr) * sizeof(char), GFP_KERNEL);
+	if(!return_buffer){
+		PDEBUG("Failed Malloc");
+		return NULL;
+	}
 	if(buffer->entry[buffer->in_offs].buffptr != NULL){
 		PDEBUG("Buffer is Full!!!!!!!!!!!!!!!!\n");
-		//return_struct = buffer->entry[buffer->in_offs];
 		return_buffer = buffer->entry[buffer->in_offs].buffptr;
 		buffer->out_offs = buffer->out_offs + 1;
 		if(buffer->out_offs >= BUFFER_SIZE){
