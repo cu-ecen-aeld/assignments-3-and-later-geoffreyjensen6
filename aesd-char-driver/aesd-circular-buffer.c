@@ -14,9 +14,17 @@
 #else
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
 #endif
 
 #define AESD_DEBUG 1  //Remove comment on this line to enable debug
+
+#undef MEM_ALLOC
+#ifdef __KERNEL__
+#	define MEM_ALLOC(pointer, type, size) pointer=(type *)kmalloc(size * sizeof(type), GFP_KERNEL)
+#else
+#	define MEM_ALLOC(pointer, type, size) pointer=(type *)malloc(size * sizeof(type))
+#endif
 
 #undef PDEBUG             /* undef it, just in case */
 #ifdef AESD_DEBUG
@@ -101,8 +109,10 @@ struct aesd_buffer_entry *aesd_circular_buffer_find_entry_offset_for_fpos(struct
 * Any memory referenced in @param add_entry must be allocated by and/or must have a lifetime managed by the caller.
 */
 const char *aesd_circular_buffer_add_entry(struct aesd_circular_buffer *buffer, const struct aesd_buffer_entry *add_entry)
-{
-	char *return_buffer = (char *)kmalloc(strlen(add_entry->buffptr) * sizeof(char), GFP_KERNEL);
+{	
+	//char *return_buffer = (char *)kmalloc(strlen(add_entry->buffptr) * sizeof(char), GFP_KERNEL);
+	const char *return_buffer;
+	MEM_ALLOC(return_buffer, char, strlen(add_entry->buffptr));
 	if(!return_buffer){
 		PDEBUG("Failed Malloc");
 		return NULL;
@@ -130,16 +140,16 @@ const char *aesd_circular_buffer_add_entry(struct aesd_circular_buffer *buffer, 
 
 void aesd_print_circular_buffer(struct aesd_circular_buffer *buffer)
 {
-	PDEBUG("Buffer Entry 0 = %s", buffer->entry[0]);
-	PDEBUG("Buffer Entry 1 = %s", buffer->entry[1]);
-	PDEBUG("Buffer Entry 2 = %s", buffer->entry[2]);
-	PDEBUG("Buffer Entry 3 = %s", buffer->entry[3]);
-	PDEBUG("Buffer Entry 4 = %s", buffer->entry[4]);
-	PDEBUG("Buffer Entry 5 = %s", buffer->entry[5]);
-	PDEBUG("Buffer Entry 6 = %s", buffer->entry[6]);
-	PDEBUG("Buffer Entry 7 = %s", buffer->entry[7]);
-	PDEBUG("Buffer Entry 8 = %s", buffer->entry[8]);
-	PDEBUG("Buffer Entry 9 = %s", buffer->entry[9]);
+	PDEBUG("Buffer Entry 0 = %s", buffer->entry[0].buffptr);
+	PDEBUG("Buffer Entry 1 = %s", buffer->entry[1].buffptr);
+	PDEBUG("Buffer Entry 2 = %s", buffer->entry[2].buffptr);
+	PDEBUG("Buffer Entry 3 = %s", buffer->entry[3].buffptr);
+	PDEBUG("Buffer Entry 4 = %s", buffer->entry[4].buffptr);
+	PDEBUG("Buffer Entry 5 = %s", buffer->entry[5].buffptr);
+	PDEBUG("Buffer Entry 6 = %s", buffer->entry[6].buffptr);
+	PDEBUG("Buffer Entry 7 = %s", buffer->entry[7].buffptr);
+	PDEBUG("Buffer Entry 8 = %s", buffer->entry[8].buffptr);
+	PDEBUG("Buffer Entry 9 = %s", buffer->entry[9].buffptr);
 	PDEBUG("Current In_Offs is = %d", buffer->in_offs);
 	PDEBUG("Current Out_Offs is = %d", buffer->out_offs);
 }
