@@ -43,4 +43,6 @@ struct aesd_seekto {
  */
 #define AESDCHAR_IOC_MAXNR 1
 
+long aesd_ioctl(struct file *filp, unsigned int cmd, unsigned long arg);
+
 #endif /* AESD_IOCTL_H */

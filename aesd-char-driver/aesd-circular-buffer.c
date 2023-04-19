@@ -64,7 +64,7 @@ struct aesd_buffer_entry *aesd_circular_buffer_find_entry_offset_for_fpos(struct
 
 	//Find where in_offs is when this function is called so they can be restored before exit
 	restore_out_offs = buffer->out_offs;
-	PDEBUG("Location of out_offs pointer at start: %i\n", restore_out_offs);
+	//PDEBUG("Location of out_offs pointer at start: %i\n", restore_out_offs);
 
 	while(1){
 		loop_count = loop_count + 1;
@@ -132,8 +132,7 @@ const char *aesd_circular_buffer_add_entry(struct aesd_circular_buffer *buffer, 
 	buffer->entry[buffer->in_offs].size = strlen(add_entry->buffptr);	
 	buffer->in_offs = buffer->in_offs + 1;
 	if(buffer->in_offs >= BUFFER_SIZE){
-		buffer->in_offs = 0;
-	}
+		buffer->in_offs = 0; }
 	aesd_print_circular_buffer(buffer);
 	return return_buffer;
 }
@@ -152,6 +151,17 @@ void aesd_print_circular_buffer(struct aesd_circular_buffer *buffer)
 	PDEBUG("Buffer Entry 9 = %s", buffer->entry[9].buffptr);
 	PDEBUG("Current In_Offs is = %d", buffer->in_offs);
 	PDEBUG("Current Out_Offs is = %d", buffer->out_offs);
+}
+
+loff_t get_aesd_buffer_length(struct aesd_circular_buffer *buffer)
+{
+	loff_t size = 0;
+	int i;
+	for(i=0;i<BUFFER_SIZE;i++){
+		size = buffer->entry[i].size + size;	
+		PDEBUG("Entry[%i].size = %li and total size is now %lli",i,buffer->entry[i].size,size);
+	}
+	return size;
 }
 
 /**
