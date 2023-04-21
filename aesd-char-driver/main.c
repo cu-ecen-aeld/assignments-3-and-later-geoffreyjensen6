@@ -83,12 +83,12 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
     PDEBUG("rtn_byte was %li", rtn_byte);
 
     *f_pos = *f_pos + dev->read_entry->size - rtn_byte;
-    retval = retval + dev->read_entry->size - rtn_byte;
+    retval = dev->read_entry->size - rtn_byte;
 
     //Malloc local buffer
     read_buffer = (char *)kmalloc(retval * sizeof(char *),GFP_KERNEL); 
     if(!read_buffer){
-	    goto exit;
+	    goto free;
     }
     memset(read_buffer, 0, (retval * sizeof(char*)));
 
@@ -103,11 +103,13 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
     PDEBUG("Retval is %li", retval);
     if(copy_to_user(buf, read_buffer, (retval+1))){
 	retval = -EFAULT;
-	goto exit;
+	goto free;
     }
     
+    free:
+        kfree(read_buffer);
+    
     exit:
-	kfree(read_buffer);
 	PDEBUG("Freed read buffer");
     	mutex_unlock(&dev->lock);
     	return retval;

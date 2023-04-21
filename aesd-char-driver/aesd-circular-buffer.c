@@ -64,35 +64,35 @@ struct aesd_buffer_entry *aesd_circular_buffer_find_entry_offset_for_fpos(struct
 
 	//Find where in_offs is when this function is called so they can be restored before exit
 	restore_out_offs = buffer->out_offs;
-	//PDEBUG("Location of out_offs pointer at start: %i\n", restore_out_offs);
+	PDEBUG("Location of out_offs pointer at start: %i\n", restore_out_offs);
 
 	while(1){
 		loop_count = loop_count + 1;
 		entry_size = buffer->entry[buffer->out_offs].size;
-		//PDEBUG("Entry size is %li\n", entry_size);
-		//PDEBUG("Entry is %s\n", buffer->entry[buffer->out_offs].buffptr);
+		PDEBUG("Entry size is %li\n", entry_size);
+		PDEBUG("Entry is %s\n", buffer->entry[buffer->out_offs].buffptr);
 		total_beginning_entry = total_end_entry;
 		total_end_entry	= entry_size + total_beginning_entry;
-		//PDEBUG("Total @ BE is %li, @EE is %li and char_offset is %li\n", total_beginning_entry, total_end_entry, char_offset);
+		PDEBUG("Total @ BE is %li, @EE is %li and char_offset is %li\n", total_beginning_entry, total_end_entry, char_offset);
 		if(char_offset >= total_end_entry){
 			buffer->out_offs = buffer->out_offs + 1;
 			if(buffer->out_offs >= 10){
 				buffer->out_offs = 0;
 			}
-			//PDEBUG("next Out_offs is %i\n", buffer->out_offs);
+			PDEBUG("next Out_offs is %i\n", buffer->out_offs);
 			if(loop_count >= BUFFER_SIZE){
 				buffer->out_offs = restore_out_offs;
-				//PDEBUG("Location of in_offs pointer at exit: %i\n", buffer->out_offs);
+				PDEBUG("Location of in_offs pointer at exit: %i\n", buffer->out_offs);
 				return NULL;
 			}		
 			continue;
 		}
 		else if(char_offset >= total_beginning_entry){
 			*entry_offset_byte_rtn = char_offset - total_beginning_entry;
-			//PDEBUG("Out Offs = %i\n", buffer->out_offs);
+			PDEBUG("Out Offs = %i\n", buffer->out_offs);
 			output_entry = &buffer->entry[buffer->out_offs];
 			buffer->out_offs = restore_out_offs;
-			//PDEBUG("Location of in_offs pointer at exit: %i\n", buffer->out_offs);
+			PDEBUG("Location of in_offs pointer at exit: %i\n", buffer->out_offs);
 			return output_entry;
 		}
 	}
