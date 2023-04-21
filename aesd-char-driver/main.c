@@ -61,6 +61,7 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
     loff_t entry_pos;
     
     PDEBUG("read %zu bytes with offset %lld",count,*f_pos);
+    PDEBUG("f_pos is %lld", filp->f_pos);
 
     //Lock
     if(mutex_lock_interruptible(&dev->lock)){

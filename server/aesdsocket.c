@@ -20,6 +20,8 @@ Date: 03/21/2023
 #include <sys/queue.h>
 #include <pthread.h>
 #include <time.h>
+#include <regex.h>
+#include "aesd_ioctl.h"
 
 #define USE_AESD_CHAR_DEVICE 1  //Set to 1 by default in Assignment 8
 
@@ -74,65 +76,16 @@ void flip_ip_addr(char *ip_addr){
 	return;
 }
 
-void receive_and_write_to_file(int socket_fd){
-	ssize_t bytes_read, bytes_written;
-	char read_buffer[READ_WRITE_SIZE] = "";
-	char newline = '\n';
-	int end_of_packet = 0;
-	//int writer_fd = creat(WRITE_FILE, 0644);
-	int writer_fd = open(WRITE_FILE, O_WRONLY | O_CREAT | O_APPEND, 0644);
-	syslog(LOG_DEBUG, "Writer FD is %i", writer_fd);
-	if(writer_fd == -1){
-		perror("Unable to open WRITE_FILE: ");
-	}
-
-	while(end_of_packet == 0){
-		if((bytes_read = recv(socket_fd,read_buffer,READ_WRITE_SIZE,0)) != 0){
-			if(bytes_read == -1) {
-				if (errno == EINTR){
-					continue;
-				}
-				perror("SOCKET RECV ERROR: ");
-				syslog(LOG_DEBUG,"FD is %i",socket_fd);
-				break;
-			}	
-			//syslog(LOG_DEBUG,"RECV: %li bytes and read_buffer=%s",bytes_read,read_buffer);
-			if(strchr(read_buffer,newline) != NULL){
-				end_of_packet = 1;
-			}
-			while(1){
-				if(pthread_mutex_lock(&write_lock) == 0){
-					bytes_written = write(writer_fd, read_buffer, bytes_read);
-					if(bytes_written == -1){
-						if (errno == EINTR){
-							continue;
-						}
-						perror("SOCKET WRITE ERROR: ");
-						break;
-					}
-					else{
-						pthread_mutex_unlock(&write_lock);
-						break;;
-					}
-				}
-			}
-		}
-
-	}
-	close(writer_fd);
-	return;
-}
-
-void read_file_and_send(int socket_fd){
+void read_file_and_send(int socket_fd, int reader_fd){
 	ssize_t bytes_read, bytes_written;
 	char write_buffer[READ_WRITE_SIZE] = "";
-	int reader_fd;
+	/*int reader_fd;
 
 	reader_fd = open(WRITE_FILE, O_RDONLY, 0444);
 	syslog(LOG_DEBUG, "Reader FD is %i", reader_fd);
 	if(reader_fd == -1){
 		perror("Unable to open WRITE_FILE: ");
-	}
+	}*/
 	while ((bytes_read = read(reader_fd,write_buffer,READ_WRITE_SIZE)) != 0){
 		if(bytes_read == -1) {
 			if (errno == EINTR){
@@ -156,9 +109,92 @@ void read_file_and_send(int socket_fd){
 			}
 		}
 	}
-	close(reader_fd);
+	//close(reader_fd);
 	return;
 }
+
+int receive_and_write_to_file(int socket_fd, int writer_fd){
+	ssize_t bytes_read, bytes_written;
+	char read_buffer[READ_WRITE_SIZE] = "";
+	char newline = '\n';
+	char *special_string = "AESDCHAR_IOCSEEKTO:";
+	char *temp_string;
+	char *split_string;
+	int end_of_packet = 0;
+	//int writer_fd = creat(WRITE_FILE, 0644);
+	//int writer_fd = open(WRITE_FILE, O_WRONLY | O_CREAT | O_APPEND, 0644);
+	struct aesd_seekto seekto;
+	int ioctl_result;
+		
+	/*syslog(LOG_DEBUG, "Writer FD is %i", writer_fd);
+	if(writer_fd == -1){
+		perror("Unable to open WRITE_FILE: ");
+	}*/
+
+	while(end_of_packet == 0){
+		if((bytes_read = recv(socket_fd,read_buffer,READ_WRITE_SIZE,0)) != 0){
+			if(bytes_read == -1) {
+				if (errno == EINTR){
+					continue;
+				}
+				perror("SOCKET RECV ERROR: ");
+				syslog(LOG_DEBUG,"FD is %i",socket_fd);
+				break;
+			}	
+			//syslog(LOG_DEBUG,"RECV: %li bytes and read_buffer=%s",bytes_read,read_buffer);
+			if(strchr(read_buffer,newline) != NULL){
+				end_of_packet = 1;
+			}
+			while(1){	
+				if(pthread_mutex_lock(&write_lock) == 0){
+					syslog(LOG_DEBUG,"Socket Read Buffer %s",read_buffer);
+					if(strncmp(read_buffer,special_string,19) == 0){
+						temp_string = (char *)malloc(5 * sizeof(char));
+						split_string = (char *)malloc(5 * sizeof(char));
+						syslog(LOG_DEBUG,"FOUND ONE OF THESE INSTANCES. SKIPPING WRITING");
+						syslog(LOG_DEBUG,"read_buffer is %s",read_buffer);	
+						strncpy(temp_string, read_buffer+19, 5);
+						syslog(LOG_DEBUG, "End of read buffer is %s", temp_string);
+						split_string = strtok(temp_string, ",");
+        					seekto.write_cmd = atoi(split_string);
+						split_string = strtok(NULL, ",");
+     						seekto.write_cmd_offset = atoi(split_string);
+						syslog(LOG_DEBUG,"Command is %i and Command Offset is %i", seekto.write_cmd, seekto.write_cmd_offset);
+        					ioctl_result = ioctl(writer_fd, AESDCHAR_IOCSEEKTO, &seekto);
+						syslog(LOG_DEBUG,"IOCTL Result is %i", ioctl_result);
+						pthread_mutex_unlock(&write_lock);
+						read_file_and_send(socket_fd, writer_fd);
+						free(temp_string);
+						//free(split_string);
+						return 1;
+						//break;
+					}
+					else{
+						syslog(LOG_DEBUG, "strncmp returned %i",strncmp(read_buffer,special_string,19));  
+						syslog(LOG_DEBUG,"Special String is %s and read_buffer is %s", special_string, read_buffer);
+						bytes_written = write(writer_fd, read_buffer, bytes_read);
+						if(bytes_written == -1){
+							if (errno == EINTR){
+								continue;
+							}
+							perror("SOCKET WRITE ERROR: ");
+							break;
+						}
+						else{
+							pthread_mutex_unlock(&write_lock);
+							break;
+						}
+					}
+				}
+			}
+		}
+
+	}
+	//close(writer_fd);
+	return 0;
+}
+
+
 
 static void socket_signal_handler (int signal_number){
 	if (signal_number == SIGTERM || signal_number == SIGINT){
@@ -168,10 +204,25 @@ static void socket_signal_handler (int signal_number){
 
 void *data_processor(void *input_args){
 	struct arg_struct *in_args = input_args;
+	int writer_fd = open(WRITE_FILE, O_RDWR | O_CREAT | O_APPEND, 0644);
 	//Receive, Store, Read back, and Send data back
-	receive_and_write_to_file(in_args->connected_skt_fd);
-	read_file_and_send(in_args->connected_skt_fd);
-	in_args->thread_complete = 1;
+	syslog(LOG_DEBUG, "Writer FD is %i", writer_fd);
+	if(writer_fd == -1){
+		perror("Unable to open WRITE_FILE: ");
+	}
+
+	if(receive_and_write_to_file(in_args->connected_skt_fd, writer_fd) == 0){
+		close(writer_fd);
+		writer_fd = open(WRITE_FILE, O_RDONLY | O_CREAT | O_APPEND, 0644);
+		//Receive, Store, Read back, and Send data back
+		syslog(LOG_DEBUG, "Writer FD is %i", writer_fd);
+		if(writer_fd == -1){
+			perror("Unable to open WRITE_FILE: ");
+		}
+		read_file_and_send(in_args->connected_skt_fd, writer_fd);
+		in_args->thread_complete = 1;
+	}
+	close(writer_fd);
 
 	return input_args;
 }

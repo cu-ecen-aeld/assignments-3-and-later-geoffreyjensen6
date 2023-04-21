@@ -9,13 +9,14 @@ OBJ ?= aesdsocket
 CROSS_COMPILE ?= none
 CFLAGS ?= -g -Wall -Werror
 LDFLAGS ?= -pthread -lrt
+HEADERS ?= -I "../aesd-char-driver"
 
 
 default: $(SRC)
 ifeq ($(CROSS_COMPILE), $(CROSS_CC))
-	$(CROSS_CC)$(CC) $(CFLAGS) -o $(OBJ) $(SRC) ${LDFLAGS)
+	$(CROSS_CC)$(CC) $(CFLAGS) -o $(OBJ) $(SRC) ${LDFLAGS) ${HEADERS}
 else
-	$(CC) $(CFLAGS) -o $(OBJ) $(SRC) ${LDFLAGS}
+	$(CC) $(CFLAGS) -o $(OBJ) $(SRC) ${LDFLAGS} ${HEADERS}
 endif
 
 clean:
