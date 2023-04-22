@@ -61,7 +61,6 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
     loff_t entry_pos;
     
     PDEBUG("read %zu bytes with offset %lld",count,*f_pos);
-    PDEBUG("f_pos is %lld", filp->f_pos);
 
     //Lock
     if(mutex_lock_interruptible(&dev->lock)){
@@ -82,8 +81,11 @@ ssize_t aesd_read(struct file *filp, char __user *buf, size_t count,
     //Modify the file position pointer which is passed in to indicate where it stands after the read
     PDEBUG("rtn_byte was %li", rtn_byte);
 
+    PDEBUG("f_pos was %lld", *f_pos);
     *f_pos = *f_pos + dev->read_entry->size - rtn_byte;
     retval = dev->read_entry->size - rtn_byte;
+    PDEBUG("f_pos is now %lld", *f_pos);
+
 
     //Malloc local buffer
     read_buffer = (char *)kmalloc(retval * sizeof(char *),GFP_KERNEL); 
@@ -177,8 +179,10 @@ ssize_t aesd_write(struct file *filp, const char __user *buf, size_t count,
     //Add to circular buffer if end of packet
     if(dev->end_of_packet == 1){
 	PDEBUG("Writing entry to buffer and freeing");
+	PDEBUG("f_pos was %lld", *f_pos);
         buffer_to_free = aesd_circular_buffer_add_entry(dev->buffer, dev->buffer_entry);
 	*f_pos = *f_pos + dev->buffer_entry->size;
+	PDEBUG("f_pos is now %lld", *f_pos);
 	if(buffer_to_free != NULL){
 		PDEBUG("Freeing buffer with contents %s", buffer_to_free);
 		kfree(buffer_to_free);
@@ -202,28 +206,9 @@ loff_t aesd_seek(struct file *filp, loff_t offset, int whence){
     loff_t buffer_size;
     buffer_size = get_aesd_buffer_length(dev->buffer);
     requested_location = fixed_size_llseek(filp, offset, whence, buffer_size);
-    PDEBUG("Requested Position is %li for offset %li", requested_location, offset);
+    PDEBUG("Requested Position is %lli for offset %lli", requested_location, offset);
     filp->f_pos = requested_location;
-/*
-    // Seek Current
-    if(seek_op == 1){
-	requested_location = filp->f_pos + offset;
-    }
-    // Seek End
-    else if(seek_op == 2){
-	requested_location = dev->size + offset;
-    }
-    // Seek Set has no action
-    else if (seek_op != 0){
-	return EINVAL;
-    }
-    //Need to make a variable part of dev called size and incrase or decrease whenever and entyr changes`
-
-   filp->f_pos = requested_location;
-   */
-
-   return requested_location;
-
+    return requested_location;
 }
 
 static long aesd_adjust_file_offset(struct file *filp,unsigned int write_cmd, unsigned int write_cmd_offset){
@@ -232,24 +217,42 @@ static long aesd_adjust_file_offset(struct file *filp,unsigned int write_cmd, un
 	uint8_t current_out_offs;
 	size_t total_size;
 	int i;
-	loff_t requested_position;
+	long retval = 0;
 	PDEBUG("IN IOCTL FUNCTION");
-	if(write_cmd > 10 || write_cmd < 0){
+
+	//Verify entry is not out of range
+	if(write_cmd >= 10 || write_cmd < 0){
 		PDEBUG("Invalid Write Command");
-		return -EINVAL;
+		retval = -EINVAL;
+		goto fail;
 	}
-	seeked_out_offs = (dev->buffer->out_offs + write_cmd) % 11;
+
+	//Lock
+    	if(mutex_lock_interruptible(&dev->lock)){
+		retval = -ERESTARTSYS;
+		goto fail;
+	}
+
+	seeked_out_offs = (dev->buffer->out_offs + write_cmd) % 10;
+	//Verify command is written
+	if(dev->buffer->entry[seeked_out_offs].buffptr == NULL){
+		PDEBUG("Desired Command has not been written yet");
+		retval = -EINVAL;
+		goto fail;
+	}
+	
+	//Verify write cmd offset is less than the size of the cmd entry
 	PDEBUG("Previously dev->buffer->out_offs was %i and now it will be %i", dev->buffer->out_offs, seeked_out_offs);
 	if(dev->buffer->entry[seeked_out_offs].size < write_cmd_offset){
 		PDEBUG("Invalid Write Command Offset");
 		PDEBUG("Write command offset is %i and buffer entry has size %li", write_cmd_offset, dev->buffer->entry[seeked_out_offs].size);
-		return -EINVAL;
+		retval = -EINVAL;
+		goto fail;
 	}
 	PDEBUG("Valid Write command and command offset");
 	
 	current_out_offs = 0;
 	total_size = 0;
-    	//dev->read_entry = aesd_circular_buffer_find_entry_offset_for_fpos(dev->buffer, *f_pos, &rtn_byte);
 	PDEBUG("f_pos is %lld. Updating now...", filp->f_pos);
 	for(i=0;i<=10;i++){
 		current_out_offs = dev->buffer->out_offs + i;
@@ -259,14 +262,19 @@ static long aesd_adjust_file_offset(struct file *filp,unsigned int write_cmd, un
 			continue;
 		}
 		total_size = total_size + write_cmd_offset;
-		PDEBUG("At right entry now. Adding %li to total which is now %li", write_cmd_offset, total_size);
+		PDEBUG("At right entry now. Adding %i to total which is now %li", write_cmd_offset, total_size);
 		break;
 	}
 
 	filp->f_pos = total_size;
 	PDEBUG("f_pos is now %lld", filp->f_pos);
 
-	return 0;	
+	retval = 0;
+    
+	fail:
+		mutex_unlock(&dev->lock);
+		return retval;
+
 }
 
 long aesd_ioctl(struct file *filp,unsigned int cmd, unsigned long arg){

@@ -148,11 +148,9 @@ int receive_and_write_to_file(int socket_fd, int writer_fd){
 			while(1){	
 				if(pthread_mutex_lock(&write_lock) == 0){
 					syslog(LOG_DEBUG,"Socket Read Buffer %s",read_buffer);
-					if(strncmp(read_buffer,special_string,19) == 0){
-						temp_string = (char *)malloc(5 * sizeof(char));
-						split_string = (char *)malloc(5 * sizeof(char));
-						syslog(LOG_DEBUG,"FOUND ONE OF THESE INSTANCES. SKIPPING WRITING");
-						syslog(LOG_DEBUG,"read_buffer is %s",read_buffer);	
+					if(strncmp(read_buffer,special_string,strlen(special_string)) == 0){
+						temp_string = (char *)malloc((strlen(read_buffer) - strlen(special_string)) * sizeof(char));
+						split_string = (char *)malloc((strlen(read_buffer) - strlen(special_string)) * sizeof(char));
 						strncpy(temp_string, read_buffer+19, 5);
 						syslog(LOG_DEBUG, "End of read buffer is %s", temp_string);
 						split_string = strtok(temp_string, ",");
@@ -165,9 +163,7 @@ int receive_and_write_to_file(int socket_fd, int writer_fd){
 						pthread_mutex_unlock(&write_lock);
 						read_file_and_send(socket_fd, writer_fd);
 						free(temp_string);
-						//free(split_string);
 						return 1;
-						//break;
 					}
 					else{
 						syslog(LOG_DEBUG, "strncmp returned %i",strncmp(read_buffer,special_string,19));  
@@ -190,7 +186,6 @@ int receive_and_write_to_file(int socket_fd, int writer_fd){
 		}
 
 	}
-	//close(writer_fd);
 	return 0;
 }
 
