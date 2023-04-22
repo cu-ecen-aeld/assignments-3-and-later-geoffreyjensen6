@@ -11,7 +11,6 @@
 #ifdef __KERNEL__
 #include <linux/types.h>
 #else
-#include <linux/types.h>
 #include <stddef.h> // size_t
 #include <stdint.h> // uintx_t
 #include <stdbool.h>
@@ -61,7 +60,7 @@ extern void aesd_print_circular_buffer(struct aesd_circular_buffer *buffer);
 
 extern void aesd_circular_buffer_init(struct aesd_circular_buffer *buffer);
 
-extern loff_t get_aesd_buffer_length(struct aesd_circular_buffer *buffer);
+extern long long int get_aesd_buffer_length(struct aesd_circular_buffer *buffer);
 
 /**
  * Create a for loop to iterate over each member of the circular buffer.

@@ -145,7 +145,7 @@ void aesd_print_circular_buffer(struct aesd_circular_buffer *buffer)
 	PDEBUG("Current Out_Offs is = %d", buffer->out_offs);
 }
 
-loff_t get_aesd_buffer_length(struct aesd_circular_buffer *buffer)
+long long int get_aesd_buffer_length(struct aesd_circular_buffer *buffer)
 {
 	loff_t size = 0;
 	int i;
